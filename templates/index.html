@@ -8,89 +8,121 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         :root {
-            --bg-dark: #0f172a;
-            --card-dark: #1e293b;
-            --border-dark: #334155;
-            --accent-green: #10b981;
+            /* Project color palette: Deep sleek dark theme with emerald/teal accents */
+            --bg-main: #121212;
+            --bg-surface: #1e1e1e;
+            --bg-elevated: #282828;
+            --border-color: #383838;
+            --accent-primary: #41b883;       /* Brand Emerald / Vue teal */
+            --accent-primary-hover: #34976c;
             --accent-blue: #3b82f6;
             --accent-purple: #8b5cf6;
-            --text-light: #f8fafc;
-            --text-muted: #94a3b8;
+            --accent-danger: #ef4444;
+            --text-primary: #f8fafc;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
         }
+
         body {
-            background-color: var(--bg-dark);
-            color: var(--text-light);
-            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             min-height: 100vh;
         }
+
         .navbar {
-            background: rgba(30, 41, 59, 0.7);
+            background: rgba(30, 30, 30, 0.85);
             backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border-dark);
+            border-bottom: 1px solid var(--border-color);
         }
+
         .card {
-            background-color: var(--card-dark);
-            border: 1px solid var(--border-dark);
-            border-radius: 12px;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
         }
+
+        .card-elevated {
+            background-color: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        .btn-brand {
+            background-color: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: #ffffff;
+            font-weight: 600;
+        }
+        .btn-brand:hover {
+            background-color: var(--accent-primary-hover);
+            border-color: var(--accent-primary-hover);
+            color: #ffffff;
+        }
+
+        .text-brand {
+            color: var(--accent-primary) !important;
+        }
+
+        .badge-brand {
+            background-color: var(--accent-primary);
+            color: #ffffff;
+        }
+
         .dropzone {
-            border: 2px dashed #475569;
-            border-radius: 12px;
+            border: 2px dashed #4a4a4a;
+            border-radius: 10px;
             padding: 40px 20px;
             text-align: center;
-            background: rgba(15, 23, 42, 0.5);
+            background: rgba(24, 24, 27, 0.4);
             cursor: pointer;
             transition: all 0.2s ease;
         }
         .dropzone:hover, .dropzone.dragover {
-            border-color: var(--accent-green);
-            background: rgba(16, 185, 129, 0.05);
+            border-color: var(--accent-primary);
+            background: rgba(65, 184, 131, 0.05);
         }
-        .badge-client {
-            background-color: #ef4444;
-            color: white;
-        }
-        .badge-server {
-            background-color: #10b981;
-            color: white;
-        }
-        .badge-perf {
-            background-color: #8b5cf6;
-            color: white;
-        }
-        .tab-content {
-            margin-top: 20px;
+
+        .nav-tabs {
+            border-bottom: 1px solid var(--border-color);
         }
         .nav-tabs .nav-link {
-            color: var(--text-muted);
+            color: var(--text-secondary);
             border: none;
             border-bottom: 2px solid transparent;
+            padding: 10px 16px;
         }
         .nav-tabs .nav-link.active {
-            color: var(--accent-green);
+            color: var(--accent-primary);
             background: transparent;
-            border-bottom: 2px solid var(--accent-green);
+            border-bottom: 2px solid var(--accent-primary);
             font-weight: 600;
         }
+
+        .form-control, .form-select {
+            background-color: var(--bg-elevated) !important;
+            border-color: var(--border-color) !important;
+            color: var(--text-primary) !important;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--accent-primary) !important;
+            box-shadow: 0 0 0 0.25rem rgba(65, 184, 131, 0.25) !important;
+        }
+
         .table-dark {
-            --bs-table-bg: #1e293b;
-            --bs-table-border-color: #334155;
+            --bs-table-bg: var(--bg-surface);
+            --bs-table-border-color: var(--border-color);
         }
-        .btn-success {
-            background-color: var(--accent-green);
-            border-color: var(--accent-green);
+
+        .search-result-card {
+            background-color: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            transition: transform 0.15s ease, border-color 0.15s ease;
         }
-        .btn-success:hover {
-            background-color: #059669;
-            border-color: #059669;
-        }
-        .btn-primary {
-            background-color: var(--accent-blue);
-            border-color: var(--accent-blue);
-        }
-        .btn-primary:hover {
-            background-color: #2563eb;
-            border-color: #2563eb;
+        .search-result-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-primary);
         }
     </style>
 </head>
@@ -99,13 +131,16 @@
 <nav class="navbar navbar-expand-lg navbar-dark px-4 py-3 sticky-top">
     <div class="container-fluid">
         <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="/">
-            <i class="bi bi-box-seam-fill text-success fs-3"></i>
+            <i class="bi bi-box-seam-fill text-brand fs-3"></i>
             <span>MC Server Converter</span>
-            <span class="badge bg-secondary fs-6 ms-2">Pro Edition</span>
+            <span class="badge bg-secondary fs-6 ms-2">Protutech Edition</span>
         </a>
         <div class="d-flex align-items-center gap-3">
-            <a href="https://github.com/IAndrexI/minecraftserver" target="_blank" class="btn btn-outline-light btn-sm">
-                <i class="bi bi-github me-1"></i> GitHub Repo
+            <button class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                <i class="bi bi-key-fill me-1 text-warning"></i> API Settings
+            </button>
+            <a href="https://github.com/IAndrexI/minecraftserver" target="_blank" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-github me-1"></i> GitHub
             </a>
         </div>
     </div>
@@ -115,50 +150,94 @@
     <div class="row justify-content-center">
         <div class="col-lg-10">
 
-            <!-- Hero Header -->
+            <!-- Hero Section -->
             <div class="text-center mb-5">
-                <h1 class="display-5 fw-bold mb-3">Convert Any Modpack into a Server Pack</h1>
-                <p class="lead text-muted mx-auto" style="max-width: 650px;">
-                    Automatically strips client-side crashing mods (minimaps, shaders, HUDs), injects high-efficiency server performance mods, and generates optimized configurations and startup scripts.
+                <h1 class="display-5 fw-bold mb-3">Convert Client Modpacks into Dedicated Servers</h1>
+                <p class="lead text-secondary mx-auto" style="max-width: 650px;">
+                    Search Modrinth & CurseForge or upload modpacks. Automatically purges client crashing mods, injects matching performance mods, and generates production server bundles.
                 </p>
             </div>
 
-            <!-- Upload & Analyze Card -->
-            <div class="card p-4 shadow-lg mb-4" id="upload-card">
-                <h4 class="fw-semibold mb-3"><i class="bi bi-cloud-arrow-up text-primary me-2"></i>Upload Modpack</h4>
-                <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
-                    <i class="bi bi-archive-fill fs-1 text-muted"></i>
-                    <h5 class="mt-3 fw-bold">Drag & Drop Modpack File (.zip or .mrpack)</h5>
-                    <p class="text-muted small">Supports CurseForge packs, Modrinth (.mrpack), or custom modpack archives</p>
-                    <button type="button" class="btn btn-outline-success btn-sm mt-2">Browse Files</button>
-                    <input type="file" id="file-input" style="display: none;" accept=".zip,.mrpack">
-                </div>
+            <!-- Main Input Tabs (Upload vs Search Online) -->
+            <div class="card p-4 shadow-lg mb-4" id="input-card">
+                <ul class="nav nav-tabs mb-4" id="inputTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="search-tab-btn" data-bs-toggle="tab" data-bs-target="#search-tab-pane" type="button">
+                            <i class="bi bi-search me-2"></i>Search Online (CurseForge & Modrinth)
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="upload-tab-btn" data-bs-toggle="tab" data-bs-target="#upload-tab-pane" type="button">
+                            <i class="bi bi-cloud-arrow-up me-2"></i>Upload File (.zip / .mrpack)
+                        </button>
+                    </li>
+                </ul>
 
-                <div id="upload-progress" class="mt-3 d-none">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span id="progress-text" class="small text-muted">Analyzing modpack structure...</span>
-                        <span id="progress-percent" class="small fw-bold text-success">0%</span>
+                <div class="tab-content" id="inputTabsContent">
+                    
+                    <!-- Search Tab -->
+                    <div class="tab-pane fade show active" id="search-tab-pane" role="tabpanel">
+                        <div class="input-group mb-3">
+                            <input type="text" id="online-search-input" class="form-control form-control-lg" placeholder="Search modpacks (e.g. Star Technology, All the Mods, Prominence)...">
+                            <select id="search-provider-select" class="form-select flex-grow-0" style="width: 170px;">
+                                <option value="all">All Providers</option>
+                                <option value="modrinth">Modrinth Only</option>
+                                <option value="curseforge">CurseForge Only</option>
+                            </select>
+                            <button class="btn btn-brand btn-lg px-4" onclick="performOnlineSearch()">
+                                <i class="bi bi-search me-1"></i> Search
+                            </button>
+                        </div>
+
+                        <div id="search-loading" class="text-center py-4 d-none">
+                            <div class="spinner-border text-brand" role="status"></div>
+                            <div class="text-secondary small mt-2">Searching CurseForge & Modrinth catalogs...</div>
+                        </div>
+
+                        <!-- Results List -->
+                        <div id="search-results-container" class="d-flex flex-column gap-3 mt-3">
+                            <!-- Populated dynamically -->
+                        </div>
                     </div>
-                    <div class="progress" style="height: 8px;">
-                        <div id="progress-bar" class="progress-bar bg-success progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+
+                    <!-- Upload Tab -->
+                    <div class="tab-pane fade" id="upload-tab-pane" role="tabpanel">
+                        <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+                            <i class="bi bi-archive-fill fs-1 text-secondary"></i>
+                            <h5 class="mt-3 fw-bold">Drag & Drop Modpack File (.zip or .mrpack)</h5>
+                            <p class="text-secondary small">CurseForge exports, Modrinth (.mrpack), or custom modpack archives</p>
+                            <button type="button" class="btn btn-outline-light btn-sm mt-2">Browse Local File</button>
+                            <input type="file" id="file-input" style="display: none;" accept=".zip,.mrpack">
+                        </div>
+
+                        <div id="upload-progress" class="mt-3 d-none">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span id="progress-text" class="small text-secondary">Analyzing modpack structure...</span>
+                                <span id="progress-percent" class="small fw-bold text-brand">0%</span>
+                            </div>
+                            <div class="progress" style="height: 8px; background-color: var(--bg-elevated);">
+                                <div id="progress-bar" class="progress-bar bg-success progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                            </div>
+                        </div>
                     </div>
+
                 </div>
             </div>
 
-            <!-- Analysis & Configuration Screen (Hidden until uploaded) -->
+            <!-- Analysis & Configuration Screen (Hidden until pack is selected/uploaded) -->
             <div class="card p-4 shadow-lg mb-4 d-none" id="analysis-card">
                 <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
                     <div>
-                        <span class="badge bg-primary text-uppercase" id="pack-loader">FABRIC</span>
-                        <h3 class="fw-bold mt-1 mb-0" id="pack-name">Star Technology</h3>
-                        <div class="text-muted small mt-1">
-                            Minecraft Version: <strong class="text-light" id="pack-mc-version">1.20.1</strong> | 
-                            Loader Version: <strong class="text-light" id="pack-loader-version">0.15.11</strong> |
-                            Type: <span id="pack-type" class="text-info">CurseForge</span>
+                        <span class="badge badge-brand text-uppercase" id="pack-loader">FABRIC</span>
+                        <h3 class="fw-bold mt-1 mb-0" id="pack-name">Pack Name</h3>
+                        <div class="text-secondary small mt-1">
+                            Minecraft: <strong class="text-light" id="pack-mc-version">1.20.1</strong> | 
+                            Loader Version: <strong class="text-light" id="pack-loader-version">Latest</strong> |
+                            Source: <span id="pack-type" class="text-info text-capitalize">Modrinth</span>
                         </div>
                     </div>
                     <button class="btn btn-outline-secondary btn-sm" onclick="resetConverter()">
-                        <i class="bi bi-arrow-repeat me-1"></i> Upload Different Pack
+                        <i class="bi bi-arrow-repeat me-1"></i> Start Over
                     </button>
                 </div>
 
@@ -171,30 +250,30 @@
                     </li>
                     <li class="nav-item">
                         <button class="nav-link" id="perf-tab" data-bs-toggle="tab" data-bs-target="#performance" type="button">
-                            <i class="bi bi-lightning-charge-fill me-1"></i> Server Performance Mods
+                            <i class="bi bi-lightning-charge-fill me-1"></i> Performance Injection
                         </button>
                     </li>
                     <li class="nav-item">
                         <button class="nav-link" id="additional-tab" data-bs-toggle="tab" data-bs-target="#additional" type="button">
-                            <i class="bi bi-plus-circle me-1"></i> Additional Server Mods
+                            <i class="bi bi-plus-circle me-1"></i> Utility & Admin Mods
                         </button>
                     </li>
                     <li class="nav-item">
                         <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button">
-                            <i class="bi bi-sliders me-1"></i> Server Tuning & Memory
+                            <i class="bi bi-sliders me-1"></i> Server Tuning
                         </button>
                     </li>
                 </ul>
 
                 <!-- Tab Content -->
-                <div class="tab-content" id="converterTabContent">
+                <div class="tab-content mt-3" id="converterTabContent">
                     
                     <!-- Overview Tab: Removed Client Mods -->
                     <div class="tab-pane fade show active" id="overview" role="tabpanel">
-                        <div class="alert alert-dark border-secondary d-flex align-items-center mb-3">
+                        <div class="alert card-elevated d-flex align-items-center mb-3">
                             <i class="bi bi-info-circle-fill text-warning fs-4 me-3"></i>
                             <div>
-                                These mods have been identified as <strong>client-side only</strong> (rendering engines, shaders, HUDs, sound mods) and will be cleanly removed so your server does not crash on startup.
+                                Client-side only mods (shaders, rendering engines, minimaps, HUDs) have been cleanly removed to prevent server crashes on startup.
                             </div>
                         </div>
                         <div class="table-responsive">
@@ -204,7 +283,7 @@
                                         <th>Mod Name</th>
                                         <th>File Name</th>
                                         <th>Reason Stripped</th>
-                                        <th class="text-end">Action</th>
+                                        <th class="text-end">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody id="client-mods-table">
@@ -216,10 +295,10 @@
 
                     <!-- Performance Mods Tab -->
                     <div class="tab-pane fade" id="performance" role="tabpanel">
-                        <div class="alert alert-dark border-secondary d-flex align-items-center mb-3">
-                            <i class="bi bi-speedometer2 text-success fs-4 me-3"></i>
+                        <div class="alert card-elevated d-flex align-items-center mb-3">
+                            <i class="bi bi-speedometer2 text-brand fs-4 me-3"></i>
                             <div>
-                                Select the server-side performance mods you wish to inject. These mods optimize chunk loading, physics, AI, and RAM without modifying gameplay mechanics.
+                                Select server-side performance mods. These mods optimize chunk loading, physics, mob AI, and memory without altering gameplay.
                             </div>
                         </div>
                         <div class="row g-3" id="perf-mods-list">
@@ -229,10 +308,10 @@
 
                     <!-- Additional Server Mods Tab -->
                     <div class="tab-pane fade" id="additional" role="tabpanel">
-                        <div class="alert alert-dark border-secondary d-flex align-items-center mb-3">
+                        <div class="alert card-elevated d-flex align-items-center mb-3">
                             <i class="bi bi-puzzle-fill text-primary fs-4 me-3"></i>
                             <div>
-                                Add optional server-only utility and administration mods (e.g. Ledger for block rollback, spark for tick profiling, Chunky for terrain pre-generation).
+                                Optional server utilities: Ledger (block rollback/inspection), spark (tick lag profiler), and Chunky (terrain pre-generator).
                             </div>
                         </div>
                         <div class="row g-3" id="additional-mods-list">
@@ -244,29 +323,29 @@
                     <div class="tab-pane fade" id="settings" role="tabpanel">
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Allocated Server RAM (GB)</label>
-                                <select class="form-select bg-dark text-light border-secondary" id="server-ram">
+                                <label class="form-label fw-bold">Allocated Server RAM</label>
+                                <select class="form-select" id="server-ram">
                                     <option value="4">4 GB (Lightweight / 1-2 players)</option>
                                     <option value="6" selected>6 GB (Recommended for moderate packs)</option>
                                     <option value="8">8 GB (Heavy Tech packs / GregTech / Star Tech)</option>
                                     <option value="12">12 GB (Mega modpacks / 10+ players)</option>
                                 </select>
-                                <div class="form-text text-muted">Aikar's optimized G1GC garbage collection flags will automatically adapt to this allocation.</div>
+                                <div class="form-text text-secondary">Aikar's optimized G1GC garbage collection flags will automatically adapt.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Server Port</label>
-                                <input type="number" class="form-control bg-dark text-light border-secondary" id="server-port" value="25565">
-                                <div class="form-text text-muted">Default Minecraft Java port is 25565.</div>
+                                <input type="number" class="form-control" id="server-port" value="25565">
+                                <div class="form-text text-secondary">Default Minecraft Java port is 25565.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">View Distance (Chunks)</label>
-                                <input type="number" class="form-control bg-dark text-light border-secondary" id="view-distance" value="10" min="6" max="32">
-                                <div class="form-text text-muted">Lower view distances (8-10) reduce CPU load significantly.</div>
+                                <input type="number" class="form-control" id="view-distance" value="10" min="6" max="32">
+                                <div class="form-text text-secondary">View distance affects player render horizon.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Simulation Distance (Chunks)</label>
-                                <input type="number" class="form-control bg-dark text-light border-secondary" id="sim-distance" value="8" min="4" max="16">
-                                <div class="form-text text-muted">Distance where redstone, crops, and mob AI tick.</div>
+                                <input type="number" class="form-control" id="sim-distance" value="8" min="4" max="16">
+                                <div class="form-text text-secondary">Distance where redstone, crops, and mob AI tick.</div>
                             </div>
                         </div>
                     </div>
@@ -275,14 +354,14 @@
 
                 <!-- Action Button Footer -->
                 <div class="mt-4 pt-3 border-top border-secondary d-flex flex-wrap justify-content-between align-items-center gap-3">
-                    <div class="text-muted small">
-                        Ready to package full server bundle with startup scripts & Docker configurations.
+                    <div class="text-secondary small">
+                        Full package includes server.properties, eula.txt, run.sh (Aikar flags), and Docker files.
                     </div>
                     <div class="d-flex gap-2">
                         <button class="btn btn-outline-info" id="download-additional-btn" onclick="generatePack(true)">
                             <i class="bi bi-file-earmark-zip me-1"></i> Download Add-on Mods ZIP Only
                         </button>
-                        <button class="btn btn-success px-4 fw-bold" id="build-server-btn" onclick="generatePack(false)">
+                        <button class="btn btn-brand px-4 fw-bold" id="build-server-btn" onclick="generatePack(false)">
                             <i class="bi bi-box-seam me-1"></i> Generate Full Server Pack (.ZIP)
                         </button>
                     </div>
@@ -291,16 +370,16 @@
             </div>
 
             <!-- Proxmox LXC One-Liner Box -->
-            <div class="card p-4 shadow-lg border-primary">
+            <div class="card p-4 shadow-lg border-secondary">
                 <div class="d-flex align-items-center gap-2 mb-2">
-                    <i class="bi bi-terminal-fill text-primary fs-4"></i>
+                    <i class="bi bi-terminal-fill text-brand fs-4"></i>
                     <h5 class="fw-bold mb-0">Run On Your Proxmox VE Server</h5>
                 </div>
-                <p class="text-muted small mb-3">
-                    Want to run this converter website permanently in your Proxmox homelab? Run this single command inside your Proxmox VE host shell to spin up a dedicated, lightweight LXC container:
+                <p class="text-secondary small mb-3">
+                    Deploy this converter web dashboard as a dedicated, lightweight LXC container directly on your Proxmox VE host:
                 </p>
                 <div class="bg-black p-3 rounded-3 d-flex justify-content-between align-items-center border border-secondary">
-                    <code class="text-success small user-select-all" id="proxmox-cmd">bash -c "$(curl -fsSL https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/install-proxmox-lxc.sh)"</code>
+                    <code class="text-brand small user-select-all" id="proxmox-cmd">bash -c "$(curl -fsSL https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/install-proxmox-lxc.sh)"</code>
                     <button class="btn btn-sm btn-outline-light ms-3" onclick="copyProxmoxCmd()">
                         <i class="bi bi-clipboard" id="copy-icon"></i>
                     </button>
@@ -311,40 +390,85 @@
     </div>
 </div>
 
+<!-- Settings Modal for CurseForge API Key -->
+<div class="modal fade" id="settingsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content card-elevated text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-sliders me-2"></i>API Configuration</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label fw-bold">CurseForge API Key</label>
+                <input type="text" id="curseforge-key-input" class="form-control" placeholder="$2a$10$...">
+                <div class="form-text text-secondary">
+                    Your key is saved locally in your browser. (Modrinth does not require an API key).
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-brand" onclick="saveSettings()">Save Settings</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Version Selection Modal for Remote Packs -->
+<div class="modal fade" id="versionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content card-elevated text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="versionModalTitle">Select Modpack Version</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="version-loading" class="text-center py-4">
+                    <div class="spinner-border text-brand" role="status"></div>
+                </div>
+                <div class="list-group" id="version-list-group">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     let currentAnalysis = null;
     let uploadedFile = null;
+    let remoteDownloadUrl = null;
 
+    // Load saved CurseForge key
+    const savedCfKey = localStorage.getItem('cf_api_key') || '$2a$10$L4p7ZjoaaSXzBxrUGl8UXeSOEEKJWQJ5PoHVqwVbbTItG/4EPrmMK';
+    document.getElementById('curseforge-key-input').value = savedCfKey;
+
+    function saveSettings() {
+        const val = document.getElementById('curseforge-key-input').value.trim();
+        localStorage.setItem('cf_api_key', val);
+        bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+    }
+
+    // Drag & drop handlers
     const dropzone = document.getElementById('dropzone');
     const fileInput = document.getElementById('file-input');
 
-    // Drag & drop handlers
     dropzone.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropzone.classList.add('dragover');
     });
-
-    dropzone.addEventListener('dragleave', () => {
-        dropzone.classList.remove('dragover');
-    });
-
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
     dropzone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropzone.classList.remove('dragover');
-        if (e.dataTransfer.files.length > 0) {
-            handleFileUpload(e.dataTransfer.files[0]);
-        }
+        if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files[0]);
     });
-
     fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            handleFileUpload(e.target.files[0]);
-        }
+        if (e.target.files.length > 0) handleFileUpload(e.target.files[0]);
     });
 
     function handleFileUpload(file) {
         uploadedFile = file;
+        remoteDownloadUrl = null;
         const formData = new FormData();
         formData.append("file", file);
 
@@ -352,19 +476,15 @@
         document.getElementById('progress-bar').style.width = '45%';
         document.getElementById('progress-percent').innerText = '45%';
 
-        fetch('/api/analyze', {
-            method: 'POST',
-            body: formData
-        })
+        fetch('/api/analyze', { method: 'POST', body: formData })
         .then(res => res.json())
         .then(data => {
             document.getElementById('progress-bar').style.width = '100%';
             document.getElementById('progress-percent').innerText = '100%';
-            
             setTimeout(() => {
                 currentAnalysis = data;
                 displayAnalysis(data);
-            }, 400);
+            }, 300);
         })
         .catch(err => {
             alert("Error parsing modpack: " + err);
@@ -372,8 +492,127 @@
         });
     }
 
+    // Online Search Function
+    function performOnlineSearch() {
+        const query = document.getElementById('online-search-input').value.trim();
+        if (!query) return;
+
+        const provider = document.getElementById('search-provider-select').value;
+        const cfKey = localStorage.getItem('cf_api_key') || '';
+        const loading = document.getElementById('search-loading');
+        const resultsBox = document.getElementById('search-results-container');
+
+        loading.classList.remove('d-none');
+        resultsBox.innerHTML = '';
+
+        fetch(`/api/search?q=${encodeURIComponent(query)}&provider=${provider}&cf_key=${encodeURIComponent(cfKey)}`)
+        .then(res => res.json())
+        .then(data => {
+            loading.classList.add('d-none');
+            if (data.results.length === 0) {
+                resultsBox.innerHTML = `<div class="text-center text-secondary py-4">No modpacks found for "${query}". Try another query.</div>`;
+                return;
+            }
+
+            data.results.forEach(pack => {
+                const badgeColor = pack.provider === 'modrinth' ? 'badge-brand' : 'bg-danger';
+                const providerLabel = pack.provider === 'modrinth' ? 'Modrinth' : 'CurseForge';
+                const icon = pack.icon_url || 'https://via.placeholder.com/64';
+
+                resultsBox.innerHTML += `
+                    <div class="search-result-card p-3 d-flex gap-3 align-items-center">
+                        <img src="${icon}" class="rounded" style="width: 56px; height: 56px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/56'">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <span class="badge ${badgeColor}">${providerLabel}</span>
+                                <h6 class="mb-0 fw-bold text-light">${pack.title}</h6>
+                                <span class="text-secondary small">by ${pack.author}</span>
+                            </div>
+                            <div class="text-secondary small text-truncate" style="max-width: 600px;">
+                                ${pack.description || 'No description available'}
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="${pack.page_url}" target="_blank" class="btn btn-outline-secondary btn-sm" title="View Modpack Page">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
+                            <button class="btn btn-brand btn-sm" onclick="selectOnlinePack('${pack.provider}', '${pack.id}', '${escape(pack.title)}')">
+                                Select Version <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        })
+        .catch(err => {
+            loading.classList.add('d-none');
+            alert("Search failed: " + err);
+        });
+    }
+
+    // Select pack and list versions
+    function selectOnlinePack(provider, projectId, packTitle) {
+        document.getElementById('versionModalTitle').innerText = `Select Version: ${unescape(packTitle)}`;
+        const listGroup = document.getElementById('version-list-group');
+        const loading = document.getElementById('version-loading');
+        listGroup.innerHTML = '';
+        loading.classList.remove('d-none');
+
+        const versionModal = new bootstrap.Modal(document.getElementById('versionModal'));
+        versionModal.show();
+
+        const cfKey = localStorage.getItem('cf_api_key') || '';
+        fetch(`/api/versions?provider=${provider}&project_id=${projectId}&cf_key=${encodeURIComponent(cfKey)}`)
+        .then(res => res.json())
+        .then(data => {
+            loading.classList.add('d-none');
+            if (data.versions.length === 0) {
+                listGroup.innerHTML = '<div class="text-center text-secondary py-3">No compatible files found.</div>';
+                return;
+            }
+
+            data.versions.slice(0, 15).forEach(v => {
+                const gameVers = v.game_versions ? v.game_versions.slice(0, 3).join(', ') : 'All';
+                const loaders = v.loaders ? v.loaders.join(', ') : '';
+                listGroup.innerHTML += `
+                    <button type="button" class="list-group-item list-group-item-action bg-dark text-light border-secondary d-flex justify-content-between align-items-center" onclick="loadRemotePack('${v.download_url}', '${v.filename}')">
+                        <div>
+                            <div class="fw-bold">${v.name || v.filename}</div>
+                            <small class="text-secondary">MC: ${gameVers} ${loaders ? '| Loader: ' + loaders : ''}</small>
+                        </div>
+                        <span class="badge badge-brand">Convert This <i class="bi bi-download ms-1"></i></span>
+                    </button>
+                `;
+            });
+        });
+    }
+
+    function loadRemotePack(downloadUrl, filename) {
+        bootstrap.Modal.getInstance(document.getElementById('versionModal')).hide();
+        remoteDownloadUrl = downloadUrl;
+        uploadedFile = null;
+
+        const formData = new FormData();
+        formData.append("download_url", downloadUrl);
+        formData.append("filename", filename);
+
+        document.getElementById('input-card').classList.add('d-none');
+        document.getElementById('upload-progress').classList.remove('d-none');
+
+        fetch('/api/analyze-remote', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+            currentAnalysis = data;
+            displayAnalysis(data);
+        })
+        .catch(err => {
+            alert("Error fetching remote pack: " + err);
+            resetConverter();
+        });
+    }
+
     function displayAnalysis(data) {
-        document.getElementById('upload-card').classList.add('d-none');
+        document.getElementById('input-card').classList.add('d-none');
         document.getElementById('analysis-card').classList.remove('d-none');
 
         document.getElementById('pack-name').innerText = data.pack_name;
@@ -383,27 +622,23 @@
         document.getElementById('pack-type').innerText = data.pack_type;
         document.getElementById('client-count').innerText = data.client_mods_removed.length;
 
-        // Render client mods table
         const clientTbody = document.getElementById('client-mods-table');
         clientTbody.innerHTML = '';
         if (data.client_mods_removed.length === 0) {
-            clientTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No client-only mods detected. The pack is already clean!</td></tr>';
+            clientTbody.innerHTML = '<tr><td colspan="4" class="text-center text-secondary py-3">No client-only mods detected. The pack is clean!</td></tr>';
         } else {
-            data.client_mods_removed.forEach((mod, idx) => {
+            data.client_mods_removed.forEach((mod) => {
                 clientTbody.innerHTML += `
                     <tr>
                         <td class="fw-semibold text-danger"><i class="bi bi-x-circle-fill me-2"></i>${mod.name}</td>
-                        <td class="text-muted small">${mod.filename}</td>
+                        <td class="text-secondary small">${mod.filename}</td>
                         <td><span class="badge bg-secondary">${mod.reason}</span></td>
-                        <td class="text-end">
-                            <span class="badge badge-client">Stripped</span>
-                        </td>
+                        <td class="text-end"><span class="badge bg-danger">Stripped</span></td>
                     </tr>
                 `;
             });
         }
 
-        // Render performance & additional mods
         const perfList = document.getElementById('perf-mods-list');
         const addList = document.getElementById('additional-mods-list');
         perfList.innerHTML = '';
@@ -414,19 +649,19 @@
             const checked = mod.recommended && !isInstalled ? 'checked' : '';
             const statusBadge = isInstalled 
                 ? '<span class="badge bg-secondary ms-2">Already in Pack</span>' 
-                : '<span class="badge bg-success ms-2">Recommended</span>';
+                : '<span class="badge badge-brand ms-2">Recommended</span>';
 
             const cardHtml = `
                 <div class="col-md-6">
-                    <div class="card p-3 h-100 border-secondary">
+                    <div class="card card-elevated p-3 h-100">
                         <div class="form-check d-flex align-items-start gap-2">
                             <input class="form-check-input mt-1 mod-checkbox" type="checkbox" value="${mod.project_id}" id="mod-${mod.mod_id}" ${checked} ${isInstalled ? 'disabled' : ''}>
                             <div>
                                 <label class="form-check-label fw-bold text-light" for="mod-${mod.mod_id}">
                                     ${mod.name} ${statusBadge}
                                 </label>
-                                <div class="text-muted small mt-1">${mod.description}</div>
-                                <div class="badge badge-perf mt-2">${mod.category}</div>
+                                <div class="text-secondary small mt-1">${mod.description}</div>
+                                <div class="badge bg-dark border border-secondary mt-2">${mod.category}</div>
                             </div>
                         </div>
                     </div>
@@ -443,20 +678,19 @@
 
     function resetConverter() {
         document.getElementById('analysis-card').classList.add('d-none');
-        document.getElementById('upload-card').classList.remove('d-none');
+        document.getElementById('input-card').classList.remove('d-none');
         document.getElementById('upload-progress').classList.add('d-none');
         document.getElementById('file-input').value = '';
         currentAnalysis = null;
         uploadedFile = null;
+        remoteDownloadUrl = null;
     }
 
     function generatePack(additionalOnly = false) {
-        if (!uploadedFile) return;
+        if (!uploadedFile && !remoteDownloadUrl) return;
 
         const selectedMods = [];
-        document.querySelectorAll('.mod-checkbox:checked').forEach(cb => {
-            selectedMods.push(cb.value);
-        });
+        document.querySelectorAll('.mod-checkbox:checked').forEach(cb => selectedMods.push(cb.value));
 
         const ram = document.getElementById('server-ram').value;
         const port = document.getElementById('server-port').value;
@@ -464,7 +698,8 @@
         const simDist = document.getElementById('sim-distance').value;
 
         const formData = new FormData();
-        formData.append("file", uploadedFile);
+        if (uploadedFile) formData.append("file", uploadedFile);
+        if (remoteDownloadUrl) formData.append("download_url", remoteDownloadUrl);
         formData.append("selected_mods", JSON.stringify(selectedMods));
         formData.append("ram_gb", ram);
         formData.append("port", port);
@@ -477,10 +712,7 @@
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Packaging Server...';
         btn.disabled = true;
 
-        fetch('/api/convert', {
-            method: 'POST',
-            body: formData
-        })
+        fetch('/api/convert', { method: 'POST', body: formData })
         .then(response => {
             if (!response.ok) throw new Error("Conversion failed");
             return response.blob();
@@ -506,9 +738,7 @@
         navigator.clipboard.writeText(text);
         const icon = document.getElementById('copy-icon');
         icon.className = 'bi bi-check2';
-        setTimeout(() => {
-            icon.className = 'bi bi-clipboard';
-        }, 2000);
+        setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 2000);
     }
 </script>
 

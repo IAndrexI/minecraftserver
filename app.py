@@ -1,14 +1,14 @@
 """
-FastAPI web server handling modpack uploads, side analysis, and bundle generation.
+FastAPI web server handling modpack uploads, online API search (CurseForge + Modrinth),
+side analysis, and server bundle generation.
 """
 
 import os
 import io
 import json
 import zipfile
-import tempfile
 import requests
-from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException, Query
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -18,6 +18,13 @@ from converter_engine import (
     generate_server_properties,
     generate_run_scripts,
     query_modrinth_version
+)
+from api_client import (
+    search_modrinth_packs,
+    search_curseforge_packs,
+    get_modrinth_versions,
+    get_curseforge_versions,
+    DEFAULT_CF_API_KEY
 )
 
 app = FastAPI(title="Minecraft Server Modpack Converter")
@@ -31,6 +38,65 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 @app.get("/", response_class=HTMLResponse)
 async def serve_index(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
+
+@app.get("/api/search")
+async def api_search_modpacks(
+    q: str = Query(..., min_length=1),
+    provider: str = Query("all"),  # all, modrinth, curseforge
+    cf_key: str = Query(None)
+):
+    """Searches across Modrinth and CurseForge APIs."""
+    results = []
+    effective_cf_key = cf_key or DEFAULT_CF_API_KEY
+
+    if provider in ["all", "modrinth"]:
+        mr_results = search_modrinth_packs(q)
+        results.extend(mr_results)
+
+    if provider in ["all", "curseforge"]:
+        cf_results = search_curseforge_packs(q, api_key=effective_cf_key)
+        results.extend(cf_results)
+
+    return {"query": q, "count": len(results), "results": results}
+
+@app.get("/api/versions")
+async def api_get_pack_versions(
+    provider: str = Query(...),
+    project_id: str = Query(...),
+    cf_key: str = Query(None)
+):
+    """Retrieves versions/files for a selected modpack."""
+    if provider == "modrinth":
+        return {"versions": get_modrinth_versions(project_id)}
+    elif provider == "curseforge":
+        return {"versions": get_curseforge_versions(project_id, api_key=cf_key or DEFAULT_CF_API_KEY)}
+    return {"versions": []}
+
+@app.post("/api/analyze-remote")
+async def api_analyze_remote_modpack(
+    download_url: str = Form(...),
+    filename: str = Form("modpack.zip")
+):
+    """Downloads a modpack directly from CurseForge/Modrinth URL and analyzes it."""
+    try:
+        r = requests.get(download_url, timeout=30)
+        if r.status_code != 200:
+            raise HTTPException(status_code=400, detail=f"Failed to download modpack (HTTP {r.status_code})")
+        content = r.content
+        analysis, _ = analyze_modpack(content, filename)
+        return {
+            "pack_name": analysis.pack_name,
+            "minecraft_version": analysis.minecraft_version,
+            "loader": analysis.loader,
+            "loader_version": analysis.loader_version,
+            "pack_type": analysis.pack_type,
+            "client_mods_removed": analysis.client_mods_removed,
+            "server_mods_kept_count": len(analysis.server_mods_kept),
+            "recommended_performance_mods": analysis.recommended_performance_mods,
+            "download_url": download_url
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error analyzing remote modpack: {str(e)}")
 
 @app.post("/api/analyze")
 async def api_analyze_modpack(file: UploadFile = File(...)):
@@ -52,7 +118,8 @@ async def api_analyze_modpack(file: UploadFile = File(...)):
 
 @app.post("/api/convert")
 async def api_convert_modpack(
-    file: UploadFile = File(...),
+    file: UploadFile = File(None),
+    download_url: str = Form(None),
     selected_mods: str = Form("[]"),
     ram_gb: int = Form(6),
     port: int = Form(25565),
@@ -60,11 +127,21 @@ async def api_convert_modpack(
     simulation_distance: int = Form(8),
     additional_only: bool = Form(False)
 ):
-    content = await file.read()
-    analysis, src_zip = analyze_modpack(content, file.filename)
+    if file:
+        content = await file.read()
+        filename = file.filename
+    elif download_url:
+        r = requests.get(download_url, timeout=45)
+        if r.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to fetch remote modpack file")
+        content = r.content
+        filename = "remote_modpack.zip"
+    else:
+        raise HTTPException(status_code=400, detail="No file or download URL provided")
+
+    analysis, src_zip = analyze_modpack(content, filename)
     mod_slugs_to_add = json.loads(selected_mods)
 
-    # In-memory target zip
     out_buffer = io.BytesIO()
 
     # 1. Download selected performance / add-on mods from Modrinth
@@ -93,11 +170,11 @@ async def api_convert_modpack(
             addon_zip.writestr("README.txt", readme)
 
         out_buffer.seek(0)
-        filename = f"{analysis.pack_name.replace(' ', '_')}-server-addons.zip"
+        out_filename = f"{analysis.pack_name.replace(' ', '_')}-server-addons.zip"
         return StreamingResponse(
             out_buffer,
             media_type="application/zip",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
+            headers={"Content-Disposition": f"attachment; filename={out_filename}"}
         )
 
     # Otherwise, build the FULL server package:
@@ -106,24 +183,22 @@ async def api_convert_modpack(
 
         # Transfer server mods, configs, scripts from original pack
         for item in src_zip.infolist():
-            filename = item.filename
+            item_name = item.filename
             
-            # Skip client files
-            basename = os.path.basename(filename)
+            basename = os.path.basename(item_name)
             if basename in removed_filenames:
                 continue
             if basename in ["options.txt", "optionsof.txt", "servers.dat"]:
                 continue
 
-            # Strip prefixes if inside overrides or instance
-            target_path = filename
+            target_path = item_name
             if target_path.startswith("overrides/"):
                 target_path = target_path.replace("overrides/", "", 1)
             elif target_path.startswith(".minecraft/"):
                 target_path = target_path.replace(".minecraft/", "", 1)
 
             if target_path and not target_path.endswith("/"):
-                out_zip.writestr(target_path, src_zip.read(filename))
+                out_zip.writestr(target_path, src_zip.read(item_name))
 
         # Add the downloaded server performance mods
         for fname, fbytes in downloaded_addons:
@@ -141,7 +216,7 @@ async def api_convert_modpack(
         for sname, scontent in scripts.items():
             out_zip.writestr(sname, scontent)
 
-        # Generate a detailed report
+        # Detailed conversion report
         report = f"""==================================================
   MINECRAFT SERVER CONVERSION REPORT
 ==================================================
@@ -170,11 +245,11 @@ HOW TO RUN:
         out_zip.writestr("CONVERSION_REPORT.txt", report)
 
     out_buffer.seek(0)
-    filename = f"{analysis.pack_name.replace(' ', '_')}-server-pack.zip"
+    out_filename = f"{analysis.pack_name.replace(' ', '_')}-server-pack.zip"
     return StreamingResponse(
         out_buffer,
         media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={"Content-Disposition": f"attachment; filename={out_filename}"}
     )
 
 if __name__ == "__main__":

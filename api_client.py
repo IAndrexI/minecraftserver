@@ -124,6 +124,37 @@ def get_modrinth_versions(project_slug: str) -> List[Dict[str, Any]]:
         logger.warning(f"Modrinth version lookup error: {e}")
     return []
 
+def get_curseforge_versions(mod_id: str, api_key: str = None) -> List[Dict[str, Any]]:
+    """Gets files/versions for a CurseForge modpack."""
+    key = api_key or DEFAULT_CF_API_KEY
+    if not key:
+        return []
+
+    headers = {
+        "x-api-key": key,
+        "Accept": "application/json"
+    }
+
+    try:
+        url = f"{CURSEFORGE_API}/mods/{mod_id}/files"
+        res = requests.get(url, headers=headers, timeout=6)
+        if res.status_code == 200:
+            files = res.json().get("data", [])
+            out = []
+            for f in files:
+                out.append({
+                    "id": str(f.get("id")),
+                    "name": f.get("displayName"),
+                    "filename": f.get("fileName"),
+                    "game_versions": f.get("gameVersions", []),
+                    "download_url": f.get("downloadUrl"),
+                    "date": f.get("fileDate")
+                })
+            return out
+    except Exception as e:
+        logger.warning(f"CurseForge files lookup error: {e}")
+    return []
+
 def get_all_minecraft_versions() -> List[str]:
     """Fetches all official Minecraft release versions from Modrinth API."""
     try:

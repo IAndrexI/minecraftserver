@@ -42,10 +42,25 @@
             color: #f1f5f9 !important;
         }
 
-        .navbar {
-            background: rgba(30, 30, 30, 0.85);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border-color);
+        .brand-gradient-text {
+            background: linear-gradient(135deg, #6ee7b7 0%, #10b981 50%, #059669 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+
+        .hero-badge {
+            background-color: rgba(65, 184, 131, 0.1);
+            border: 1px solid rgba(65, 184, 131, 0.3);
+            color: #6ee7b7;
+            padding: 6px 14px;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 16px;
         }
 
         .card {
@@ -202,9 +217,14 @@
 
             <!-- Hero Section -->
             <div class="text-center mb-5">
-                <h1 class="display-5 fw-bold mb-3">Browse & Convert Minecraft Modpacks</h1>
+                <div class="hero-badge">
+                    <i class="bi bi-cpu-fill"></i> High Performance Minecraft Engine
+                </div>
+                <h1 class="display-4 fw-bold mb-3">
+                    The Best Place For All Your <span class="brand-gradient-text">Minecraft Server Packs.</span>
+                </h1>
                 <p class="lead text-secondary mx-auto" style="max-width: 680px;">
-                    Explore popular modpacks or upload your own. Strips client-only crashing mods, injects high-efficiency server performance mods, and generates clean server bundles.
+                    Search Modrinth & CurseForge or upload modpacks. Automatically purges client crashing mods, injects matching performance mods, and generates production server bundles.
                 </p>
             </div>
 

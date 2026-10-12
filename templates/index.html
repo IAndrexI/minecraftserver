@@ -8,26 +8,38 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         :root {
-            /* Sleek dark palette with brand emerald/teal accents */
+            /* Sleek dark palette with high-contrast crisp white typography */
             --bg-main: #121212;
             --bg-surface: #1e1e1e;
             --bg-elevated: #282828;
-            --border-color: #383838;
+            --border-color: #444444;
             --accent-primary: #41b883;       /* Brand emerald/teal */
             --accent-primary-hover: #34976c;
             --accent-blue: #3b82f6;
             --accent-purple: #8b5cf6;
             --accent-danger: #ef4444;
-            --text-primary: #f8fafc;
-            --text-secondary: #a1a1aa;
-            --text-muted: #71717a;
+            --text-primary: #ffffff;
+            --text-secondary: #e2e8f0;       /* High-contrast bright light text */
+            --text-muted: #cbd5e1;           /* Very readable off-white */
         }
 
         body {
             background-color: var(--bg-main);
-            color: var(--text-primary);
+            color: #ffffff;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             min-height: 100vh;
+        }
+
+        p, span, label, small, div, td, th {
+            color: #ffffff;
+        }
+
+        .text-secondary, .text-muted {
+            color: #e2e8f0 !important;
+        }
+
+        .lead {
+            color: #f1f5f9 !important;
         }
 
         .navbar {
@@ -141,23 +153,26 @@
         }
         .modpack-card-title {
             font-weight: 700;
-            font-size: 1.05rem;
-            color: #ffffff;
+            font-size: 1.1rem;
+            color: #ffffff !important;
             margin-bottom: 4px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
         .modpack-card-desc {
-            color: var(--text-secondary);
-            font-size: 0.85rem;
+            color: #f1f5f9 !important;
+            font-size: 0.9rem;
             display: -webkit-box;
             -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
             margin-bottom: 14px;
-            line-height: 1.4;
+            line-height: 1.45;
             flex-grow: 1;
+        }
+        .form-text {
+            color: #e2e8f0 !important;
         }
     </style>
 </head>

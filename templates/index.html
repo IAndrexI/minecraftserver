@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Modpack Server Converter</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-dark: #1e293b;
+            --border-dark: #334155;
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --text-light: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+        }
+        .navbar {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-dark);
+        }
+        .card {
+            background-color: var(--card-dark);
+            border: 1px solid var(--border-dark);
+            border-radius: 12px;
+        }
+        .dropzone {
+            border: 2px dashed #475569;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.5);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .dropzone:hover, .dropzone.dragover {
+            border-color: var(--accent-green);
+            background: rgba(16, 185, 129, 0.05);
+        }
+        .badge-client {
+            background-color: #ef4444;
+            color: white;
+        }
+        .badge-server {
+            background-color: #10b981;
+            color: white;
+        }
+        .badge-perf {
+            background-color: #8b5cf6;
+            color: white;
+        }
+        .tab-content {
+            margin-top: 20px;
+        }
+        .nav-tabs .nav-link {
+            color: var(--text-muted);
+            border: none;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-tabs .nav-link.active {
+            color: var(--accent-green);
+            background: transparent;
+            border-bottom: 2px solid var(--accent-green);
+            font-weight: 600;
+        }
+        .table-dark {
+            --bs-table-bg: #1e293b;
+            --bs-table-border-color: #334155;
+        }
+        .btn-success {
+            background-color: var(--accent-green);
+            border-color: var(--accent-green);
+        }
+        .btn-success:hover {
+            background-color: #059669;
+            border-color: #059669;
+        }
+        .btn-primary {
+            background-color: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+        .btn-primary:hover {
+            background-color: #2563eb;
+            border-color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark px-4 py-3 sticky-top">
+    <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="/">
+            <i class="bi bi-box-seam-fill text-success fs-3"></i>
+            <span>MC Server Converter</span>
+            <span class="badge bg-secondary fs-6 ms-2">Pro Edition</span>
+        </a>
+        <div class="d-flex align-items-center gap-3">
+            <a href="https://github.com/IAndrexI/minecraftserver" target="_blank" class="btn btn-outline-light btn-sm">
+                <i class="bi bi-github me-1"></i> GitHub Repo
+            </a>
+        </div>
+    </div>
+</nav>
+
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+
+            <!-- Hero Header -->
+            <div class="text-center mb-5">
+                <h1 class="display-5 fw-bold mb-3">Convert Any Modpack into a Server Pack</h1>
+                <p class="lead text-muted mx-auto" style="max-width: 650px;">
+                    Automatically strips client-side crashing mods (minimaps, shaders, HUDs), injects high-efficiency server performance mods, and generates optimized configurations and startup scripts.
+                </p>
+            </div>
+
+            <!-- Upload & Analyze Card -->
+            <div class="card p-4 shadow-lg mb-4" id="upload-card">
+                <h4 class="fw-semibold mb-3"><i class="bi bi-cloud-arrow-up text-primary me-2"></i>Upload Modpack</h4>
+                <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+                    <i class="bi bi-archive-fill fs-1 text-muted"></i>
+                    <h5 class="mt-3 fw-bold">Drag & Drop Modpack File (.zip or .mrpack)</h5>
+                    <p class="text-muted small">Supports CurseForge packs, Modrinth (.mrpack), or custom modpack archives</p>
+                    <button type="button" class="btn btn-outline-success btn-sm mt-2">Browse Files</button>
+                    <input type="file" id="file-input" style="display: none;" accept=".zip,.mrpack">
+                </div>
+
+                <div id="upload-progress" class="mt-3 d-none">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span id="progress-text" class="small text-muted">Analyzing modpack structure...</span>
+                        <span id="progress-percent" class="small fw-bold text-success">0%</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div id="progress-bar" class="progress-bar bg-success progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis & Configuration Screen (Hidden until uploaded) -->
+            <div class="card p-4 shadow-lg mb-4 d-none" id="analysis-card">
+                <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+                    <div>
+                        <span class="badge bg-primary text-uppercase" id="pack-loader">FABRIC</span>
+                        <h3 class="fw-bold mt-1 mb-0" id="pack-name">Star Technology</h3>
+                        <div class="text-muted small mt-1">
+                            Minecraft Version: <strong class="text-light" id="pack-mc-version">1.20.1</strong> | 
+                            Loader Version: <strong class="text-light" id="pack-loader-version">0.15.11</strong> |
+                            Type: <span id="pack-type" class="text-info">CurseForge</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="resetConverter()">
+                        <i class="bi bi-arrow-repeat me-1"></i> Upload Different Pack
+                    </button>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <ul class="nav nav-tabs" id="converterTab" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button">
+                            <i class="bi bi-shield-check me-1"></i> Client Mods Stripped (<span id="client-count">0</span>)
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="perf-tab" data-bs-toggle="tab" data-bs-target="#performance" type="button">
+                            <i class="bi bi-lightning-charge-fill me-1"></i> Server Performance Mods
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="additional-tab" data-bs-toggle="tab" data-bs-target="#additional" type="button">
+                            <i class="bi bi-plus-circle me-1"></i> Additional Server Mods
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button">
+                            <i class="bi bi-sliders me-1"></i> Server Tuning & Memory
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content" id="converterTabContent">
+                    
+                    <!-- Overview Tab: Removed Client Mods -->
+                    <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                        <div class="alert alert-dark border-secondary d-flex align-items-center mb-3">
+                            <i class="bi bi-info-circle-fill text-warning fs-4 me-3"></i>
+                            <div>
+                                These mods have been identified as <strong>client-side only</strong> (rendering engines, shaders, HUDs, sound mods) and will be cleanly removed so your server does not crash on startup.
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Mod Name</th>
+                                        <th>File Name</th>
+                                        <th>Reason Stripped</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="client-mods-table">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Performance Mods Tab -->
+                    <div class="tab-pane fade" id="performance" role="tabpanel">
+                        <div class="alert alert-dark border-secondary d-flex align-items-center mb-3">
+                            <i class="bi bi-speedometer2 text-success fs-4 me-3"></i>
+                            <div>
+                                Select the server-side performance mods you wish to inject. These mods optimize chunk loading, physics, AI, and RAM without modifying gameplay mechanics.
+                            </div>
+                        </div>
+                        <div class="row g-3" id="perf-mods-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Additional Server Mods Tab -->
+                    <div class="tab-pane fade" id="additional" role="tabpanel">
+                        <div class="alert alert-dark border-secondary d-flex align-items-center mb-3">
+                            <i class="bi bi-puzzle-fill text-primary fs-4 me-3"></i>
+                            <div>
+                                Add optional server-only utility and administration mods (e.g. Ledger for block rollback, spark for tick profiling, Chunky for terrain pre-generation).
+                            </div>
+                        </div>
+                        <div class="row g-3" id="additional-mods-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Server Settings Tab -->
+                    <div class="tab-pane fade" id="settings" role="tabpanel">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Allocated Server RAM (GB)</label>
+                                <select class="form-select bg-dark text-light border-secondary" id="server-ram">
+                                    <option value="4">4 GB (Lightweight / 1-2 players)</option>
+                                    <option value="6" selected>6 GB (Recommended for moderate packs)</option>
+                                    <option value="8">8 GB (Heavy Tech packs / GregTech / Star Tech)</option>
+                                    <option value="12">12 GB (Mega modpacks / 10+ players)</option>
+                                </select>
+                                <div class="form-text text-muted">Aikar's optimized G1GC garbage collection flags will automatically adapt to this allocation.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Server Port</label>
+                                <input type="number" class="form-control bg-dark text-light border-secondary" id="server-port" value="25565">
+                                <div class="form-text text-muted">Default Minecraft Java port is 25565.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">View Distance (Chunks)</label>
+                                <input type="number" class="form-control bg-dark text-light border-secondary" id="view-distance" value="10" min="6" max="32">
+                                <div class="form-text text-muted">Lower view distances (8-10) reduce CPU load significantly.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Simulation Distance (Chunks)</label>
+                                <input type="number" class="form-control bg-dark text-light border-secondary" id="sim-distance" value="8" min="4" max="16">
+                                <div class="form-text text-muted">Distance where redstone, crops, and mob AI tick.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Action Button Footer -->
+                <div class="mt-4 pt-3 border-top border-secondary d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <div class="text-muted small">
+                        Ready to package full server bundle with startup scripts & Docker configurations.
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-info" id="download-additional-btn" onclick="generatePack(true)">
+                            <i class="bi bi-file-earmark-zip me-1"></i> Download Add-on Mods ZIP Only
+                        </button>
+                        <button class="btn btn-success px-4 fw-bold" id="build-server-btn" onclick="generatePack(false)">
+                            <i class="bi bi-box-seam me-1"></i> Generate Full Server Pack (.ZIP)
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Proxmox LXC One-Liner Box -->
+            <div class="card p-4 shadow-lg border-primary">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-terminal-fill text-primary fs-4"></i>
+                    <h5 class="fw-bold mb-0">Run On Your Proxmox VE Server</h5>
+                </div>
+                <p class="text-muted small mb-3">
+                    Want to run this converter website permanently in your Proxmox homelab? Run this single command inside your Proxmox VE host shell to spin up a dedicated, lightweight LXC container:
+                </p>
+                <div class="bg-black p-3 rounded-3 d-flex justify-content-between align-items-center border border-secondary">
+                    <code class="text-success small user-select-all" id="proxmox-cmd">bash -c "$(curl -fsSL https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/install-proxmox-lxc.sh)"</code>
+                    <button class="btn btn-sm btn-outline-light ms-3" onclick="copyProxmoxCmd()">
+                        <i class="bi bi-clipboard" id="copy-icon"></i>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let currentAnalysis = null;
+    let uploadedFile = null;
+
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('file-input');
+
+    // Drag & drop handlers
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            handleFileUpload(e.dataTransfer.files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileUpload(e.target.files[0]);
+        }
+    });
+
+    function handleFileUpload(file) {
+        uploadedFile = file;
+        const formData = new FormData();
+        formData.append("file", file);
+
+        document.getElementById('upload-progress').classList.remove('d-none');
+        document.getElementById('progress-bar').style.width = '45%';
+        document.getElementById('progress-percent').innerText = '45%';
+
+        fetch('/api/analyze', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('progress-bar').style.width = '100%';
+            document.getElementById('progress-percent').innerText = '100%';
+            
+            setTimeout(() => {
+                currentAnalysis = data;
+                displayAnalysis(data);
+            }, 400);
+        })
+        .catch(err => {
+            alert("Error parsing modpack: " + err);
+            document.getElementById('upload-progress').classList.add('d-none');
+        });
+    }
+
+    function displayAnalysis(data) {
+        document.getElementById('upload-card').classList.add('d-none');
+        document.getElementById('analysis-card').classList.remove('d-none');
+
+        document.getElementById('pack-name').innerText = data.pack_name;
+        document.getElementById('pack-loader').innerText = data.loader;
+        document.getElementById('pack-mc-version').innerText = data.minecraft_version;
+        document.getElementById('pack-loader-version').innerText = data.loader_version || 'Latest';
+        document.getElementById('pack-type').innerText = data.pack_type;
+        document.getElementById('client-count').innerText = data.client_mods_removed.length;
+
+        // Render client mods table
+        const clientTbody = document.getElementById('client-mods-table');
+        clientTbody.innerHTML = '';
+        if (data.client_mods_removed.length === 0) {
+            clientTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No client-only mods detected. The pack is already clean!</td></tr>';
+        } else {
+            data.client_mods_removed.forEach((mod, idx) => {
+                clientTbody.innerHTML += `
+                    <tr>
+                        <td class="fw-semibold text-danger"><i class="bi bi-x-circle-fill me-2"></i>${mod.name}</td>
+                        <td class="text-muted small">${mod.filename}</td>
+                        <td><span class="badge bg-secondary">${mod.reason}</span></td>
+                        <td class="text-end">
+                            <span class="badge badge-client">Stripped</span>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Render performance & additional mods
+        const perfList = document.getElementById('perf-mods-list');
+        const addList = document.getElementById('additional-mods-list');
+        perfList.innerHTML = '';
+        addList.innerHTML = '';
+
+        data.recommended_performance_mods.forEach((mod) => {
+            const isInstalled = mod.installed;
+            const checked = mod.recommended && !isInstalled ? 'checked' : '';
+            const statusBadge = isInstalled 
+                ? '<span class="badge bg-secondary ms-2">Already in Pack</span>' 
+                : '<span class="badge bg-success ms-2">Recommended</span>';
+
+            const cardHtml = `
+                <div class="col-md-6">
+                    <div class="card p-3 h-100 border-secondary">
+                        <div class="form-check d-flex align-items-start gap-2">
+                            <input class="form-check-input mt-1 mod-checkbox" type="checkbox" value="${mod.project_id}" id="mod-${mod.mod_id}" ${checked} ${isInstalled ? 'disabled' : ''}>
+                            <div>
+                                <label class="form-check-label fw-bold text-light" for="mod-${mod.mod_id}">
+                                    ${mod.name} ${statusBadge}
+                                </label>
+                                <div class="text-muted small mt-1">${mod.description}</div>
+                                <div class="badge badge-perf mt-2">${mod.category}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            if (mod.recommended) {
+                perfList.innerHTML += cardHtml;
+            } else {
+                addList.innerHTML += cardHtml;
+            }
+        });
+    }
+
+    function resetConverter() {
+        document.getElementById('analysis-card').classList.add('d-none');
+        document.getElementById('upload-card').classList.remove('d-none');
+        document.getElementById('upload-progress').classList.add('d-none');
+        document.getElementById('file-input').value = '';
+        currentAnalysis = null;
+        uploadedFile = null;
+    }
+
+    function generatePack(additionalOnly = false) {
+        if (!uploadedFile) return;
+
+        const selectedMods = [];
+        document.querySelectorAll('.mod-checkbox:checked').forEach(cb => {
+            selectedMods.push(cb.value);
+        });
+
+        const ram = document.getElementById('server-ram').value;
+        const port = document.getElementById('server-port').value;
+        const viewDist = document.getElementById('view-distance').value;
+        const simDist = document.getElementById('sim-distance').value;
+
+        const formData = new FormData();
+        formData.append("file", uploadedFile);
+        formData.append("selected_mods", JSON.stringify(selectedMods));
+        formData.append("ram_gb", ram);
+        formData.append("port", port);
+        formData.append("view_distance", viewDist);
+        formData.append("simulation_distance", simDist);
+        formData.append("additional_only", additionalOnly);
+
+        const btn = additionalOnly ? document.getElementById('download-additional-btn') : document.getElementById('build-server-btn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Packaging Server...';
+        btn.disabled = true;
+
+        fetch('/api/convert', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) throw new Error("Conversion failed");
+            return response.blob();
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = additionalOnly ? `${currentAnalysis.pack_name}-server-addons.zip` : `${currentAnalysis.pack_name}-server-pack.zip`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        })
+        .catch(err => alert("Build error: " + err))
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+
+    function copyProxmoxCmd() {
+        const text = document.getElementById('proxmox-cmd').innerText;
+        navigator.clipboard.writeText(text);
+        const icon = document.getElementById('copy-icon');
+        icon.className = 'bi bi-check2';
+        setTimeout(() => {
+            icon.className = 'bi bi-clipboard';
+        }, 2000);
+    }
+</script>
+
+</body>
+</html>

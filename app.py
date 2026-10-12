@@ -49,17 +49,33 @@ async def api_search_version_mods(
     mc_version: str = Query("1.20.1"),
     loader: str = Query("fabric"),
     provider: str = Query("all"),
+    sort: str = Query("downloads"),
+    category: str = Query(""),
+    limit: int = Query(100),
+    offset: int = Query(0),
     cf_key: str = Query(None)
 ):
-    """Searches mods strictly compatible with the selected MC version and loader."""
+    """Searches mods strictly compatible with the selected MC version and loader with sorting & filters."""
     mods = search_version_mods(
         query=q,
         mc_version=mc_version,
         loader=loader,
         provider=provider,
-        api_key=cf_key or DEFAULT_CF_API_KEY
+        sort=sort,
+        category=category,
+        api_key=cf_key or DEFAULT_CF_API_KEY,
+        limit=limit,
+        offset=offset
     )
-    return {"mc_version": mc_version, "loader": loader, "count": len(mods), "mods": mods}
+    return {
+        "mc_version": mc_version,
+        "loader": loader,
+        "sort": sort,
+        "category": category,
+        "count": len(mods),
+        "offset": offset,
+        "mods": mods
+    }
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index(request: Request):
@@ -193,21 +209,28 @@ async def api_export_to_discopanel(
 async def api_search_modpacks(
     q: str = Query("", min_length=0),
     provider: str = Query("all"),  # all, modrinth, curseforge
+    sort: str = Query("downloads"),
     cf_key: str = Query(None)
 ):
-    """Searches across Modrinth and CurseForge APIs."""
+    """Searches across Modrinth and CurseForge APIs with sorting."""
     results = []
     effective_cf_key = cf_key or DEFAULT_CF_API_KEY
 
     if provider in ["all", "modrinth"]:
-        mr_results = search_modrinth_packs(q)
+        mr_results = search_modrinth_packs(q, sort=sort)
         results.extend(mr_results)
 
     if provider in ["all", "curseforge"]:
-        cf_results = search_curseforge_packs(q, api_key=effective_cf_key)
+        cf_results = search_curseforge_packs(q, sort=sort, api_key=effective_cf_key)
         results.extend(cf_results)
 
-    return {"query": q, "count": len(results), "results": results}
+    if provider == "all":
+        if sort.lower() == "name":
+            results.sort(key=lambda x: (x.get("title") or "").lower())
+        elif sort.lower() in ["downloads", "popularity"]:
+            results.sort(key=lambda x: x.get("downloads", 0), reverse=True)
+
+    return {"query": q, "sort": sort, "count": len(results), "results": results}
 
 @app.get("/api/versions")
 async def api_get_pack_versions(

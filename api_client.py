@@ -17,15 +17,24 @@ CURSEFORGE_API = "https://api.curseforge.com/v1"
 # Default CurseForge Key provided by the user
 DEFAULT_CF_API_KEY = os.getenv("CF_API_KEY", "$2a$10$L4p7ZjoaaSXzBxrUGl8UXeSOEEKJWQJ5PoHVqwVbbTItG/4EPrmMK")
 
-def search_modrinth_packs(query: str = "", limit: int = 24) -> List[Dict[str, Any]]:
+def search_modrinth_packs(query: str = "", sort: str = "downloads", limit: int = 24) -> List[Dict[str, Any]]:
     """Searches for modpacks on Modrinth, or gets popular ones if query is empty."""
     try:
         url = f"{MODRINTH_API}/search"
         facets = [["project_type:modpack"]]
+        mr_sort_map = {
+            "downloads": "downloads",
+            "popularity": "follows",
+            "updated": "updated",
+            "newest": "newest",
+            "relevance": "relevance",
+            "name": "relevance"
+        }
+        index_val = mr_sort_map.get(sort.lower(), "downloads")
         params = {
             "facets": json.dumps(facets),
             "limit": limit,
-            "index": "downloads"
+            "index": index_val
         }
         if query:
             params["query"] = query
@@ -53,7 +62,7 @@ def search_modrinth_packs(query: str = "", limit: int = 24) -> List[Dict[str, An
         logger.warning(f"Modrinth search error: {e}")
     return []
 
-def search_curseforge_packs(query: str = "", api_key: str = None, limit: int = 24) -> List[Dict[str, Any]]:
+def search_curseforge_packs(query: str = "", sort: str = "popularity", api_key: str = None, limit: int = 24) -> List[Dict[str, Any]]:
     """Searches for modpacks on CurseForge using the v1 API."""
     key = api_key or DEFAULT_CF_API_KEY
     if not key:
@@ -64,14 +73,24 @@ def search_curseforge_packs(query: str = "", api_key: str = None, limit: int = 2
         "Accept": "application/json"
     }
 
+    cf_sort_map = {
+        "downloads": (2, "desc"),
+        "popularity": (2, "desc"),
+        "updated": (3, "desc"),
+        "newest": (1, "desc"),
+        "name": (4, "asc"),
+        "relevance": (1, "desc")
+    }
+    sort_field, sort_order = cf_sort_map.get(sort.lower(), (2, "desc"))
+
     try:
         url = f"{CURSEFORGE_API}/mods/search"
         params = {
             "gameId": 432,           # Minecraft
             "classId": 4471,         # Modpacks
             "pageSize": limit,
-            "sortField": 2,          # Popularity
-            "sortOrder": "desc"
+            "sortField": sort_field,
+            "sortOrder": sort_order
         }
         if query:
             params["searchFilter"] = query
@@ -177,16 +196,44 @@ def get_all_minecraft_versions() -> List[str]:
         "1.18.2", "1.18.1", "1.18", "1.17.1", "1.16.5", "1.12.2", "1.7.10"
     ]
 
+CATEGORY_MAPPING_MODRINTH = {
+    "performance": "optimization",
+    "technology": "technology",
+    "magic": "magic",
+    "storage": "storage",
+    "adventure": "adventure",
+    "worldgen": "worldgen",
+    "utility": "utility",
+    "food": "food",
+    "library": "library",
+}
+
+CATEGORY_MAPPING_CURSEFORGE = {
+    "performance": 6814,
+    "technology": 412,
+    "magic": 419,
+    "storage": 420,
+    "adventure": 422,
+    "worldgen": 406,
+    "utility": 5191,
+    "food": 436,
+    "library": 421,
+}
+
 def search_version_mods(
     query: str = "",
     mc_version: str = "1.20.1",
     loader: str = "fabric",
     provider: str = "all",
+    sort: str = "downloads",
+    category: str = "",
     api_key: str = None,
-    limit: int = 50
+    limit: int = 100,
+    offset: int = 0
 ) -> List[Dict[str, Any]]:
     """
     Searches for individual mods strictly filtered to the chosen Minecraft version & loader.
+    Supports CurseForge & Modrinth sorting and category filters with pagination.
     """
     results = []
 
@@ -194,7 +241,6 @@ def search_version_mods(
     if provider in ["all", "modrinth"]:
         try:
             url = f"{MODRINTH_API}/search"
-            # Map loader
             loader_val = loader.lower()
             if loader_val == "quilt":
                 loader_facets = ["categories:quilt", "categories:fabric"]
@@ -206,16 +252,29 @@ def search_version_mods(
                 loader_facets,
                 [f"versions:{mc_version}"]
             ]
+            if category and category.lower() in CATEGORY_MAPPING_MODRINTH:
+                facets.append([f"categories:{CATEGORY_MAPPING_MODRINTH[category.lower()]}"])
+
+            mr_sort_map = {
+                "downloads": "downloads",
+                "popularity": "follows",
+                "updated": "updated",
+                "newest": "newest",
+                "relevance": "relevance",
+                "name": "relevance"
+            }
+            mr_index = mr_sort_map.get(sort.lower(), "downloads")
 
             params = {
                 "facets": json.dumps(facets),
-                "limit": limit,
-                "index": "downloads"
+                "limit": min(limit, 100),
+                "offset": offset,
+                "index": mr_index
             }
             if query:
                 params["query"] = query
 
-            res = requests.get(url, params=params, timeout=6)
+            res = requests.get(url, params=params, timeout=8)
             if res.status_code == 200:
                 hits = res.json().get("hits", [])
                 for h in hits:
@@ -243,20 +302,33 @@ def search_version_mods(
                 loader_type_map = {"forge": 1, "fabric": 4, "quilt": 5, "neoforge": 6}
                 loader_type = loader_type_map.get(loader.lower(), 4)
 
+                cf_sort_map = {
+                    "downloads": (2, "desc"),
+                    "popularity": (2, "desc"),
+                    "updated": (3, "desc"),
+                    "newest": (1, "desc"),
+                    "name": (4, "asc"),
+                    "relevance": (1, "desc")
+                }
+                cf_sort_field, cf_sort_order = cf_sort_map.get(sort.lower(), (2, "desc"))
+
                 url = f"{CURSEFORGE_API}/mods/search"
                 params = {
                     "gameId": 432,           # Minecraft
-                    "classId": 6,            # Mods (not modpacks)
+                    "classId": 6,            # Mods
                     "gameVersion": mc_version,
                     "modLoaderType": loader_type,
-                    "pageSize": limit,
-                    "sortField": 2,          # Popularity
-                    "sortOrder": "desc"
+                    "pageSize": min(limit, 50),
+                    "index": offset,
+                    "sortField": cf_sort_field,
+                    "sortOrder": cf_sort_order
                 }
+                if category and category.lower() in CATEGORY_MAPPING_CURSEFORGE:
+                    params["categoryId"] = CATEGORY_MAPPING_CURSEFORGE[category.lower()]
                 if query:
                     params["searchFilter"] = query
 
-                res = requests.get(url, headers=headers, params=params, timeout=6)
+                res = requests.get(url, headers=headers, params=params, timeout=8)
                 if res.status_code == 200:
                     data = res.json().get("data", [])
                     for d in data:
@@ -275,5 +347,12 @@ def search_version_mods(
                         })
             except Exception as e:
                 logger.warning(f"Error fetching version mods from CurseForge: {e}")
+
+    # In case of combined provider ("all"), perform client-side ordering if needed
+    if provider == "all":
+        if sort.lower() == "name":
+            results.sort(key=lambda x: (x.get("title") or "").lower())
+        elif sort.lower() in ["downloads", "popularity"]:
+            results.sort(key=lambda x: x.get("downloads", 0), reverse=True)
 
     return results

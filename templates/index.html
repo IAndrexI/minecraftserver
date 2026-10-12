@@ -256,7 +256,9 @@
                         <div class="row g-2 mb-4 align-items-center">
                             <div class="col-md-7">
                                 <div class="input-group">
-                                    <span class="input-group-text bg-elevated border-secondary text-secondary"><i class="bi bi-search"></i></span>
+                                    <button class="btn btn-outline-secondary border-secondary text-light px-3" type="button" onclick="fetchCatalog()" title="Click to search">
+                                        <i class="bi bi-search text-brand"></i>
+                                    </button>
                                     <input type="text" id="catalog-search-input" class="form-control form-control-lg" placeholder="Search by name (e.g. Star Technology, All the Mods, Better MC)..." onkeypress="handleSearchKey(event)">
                                 </div>
                             </div>

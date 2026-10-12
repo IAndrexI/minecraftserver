@@ -244,6 +244,7 @@ async def api_analyze_modpack(file: UploadFile = File(...)):
 async def api_convert_modpack(
     file: UploadFile = File(None),
     download_url: str = Form(None),
+    world_file: UploadFile = File(None),
     selected_mods: str = Form("[]"),
     ram_gb: int = Form(6),
     port: int = Form(25565),
@@ -262,6 +263,11 @@ async def api_convert_modpack(
         filename = "remote_modpack.zip"
     else:
         raise HTTPException(status_code=400, detail="No file or download URL provided")
+
+    # Read uploaded world save if provided
+    world_bytes = None
+    if world_file and world_file.filename:
+        world_bytes = await world_file.read()
 
     analysis, src_zip = analyze_modpack(content, filename)
     mod_slugs_to_add = json.loads(selected_mods)
@@ -327,6 +333,29 @@ async def api_convert_modpack(
         # Add the downloaded server performance mods
         for fname, fbytes in downloaded_addons:
             out_zip.writestr(f"mods/{fname}", fbytes)
+
+        # Inject Singleplayer World into world/ directory if provided
+        if world_bytes:
+            try:
+                with zipfile.ZipFile(io.BytesIO(world_bytes)) as wz:
+                    # Detect root folder inside world zip if any
+                    root_prefix = ""
+                    for member in wz.namelist():
+                        if "level.dat" in member:
+                            parts = member.split("level.dat")[0]
+                            root_prefix = parts
+                            break
+
+                    for witem in wz.infolist():
+                        if witem.is_dir():
+                            continue
+                        rel_path = witem.filename
+                        if root_prefix and rel_path.startswith(root_prefix):
+                            rel_path = rel_path[len(root_prefix):]
+                        if rel_path:
+                            out_zip.writestr(f"world/{rel_path}", wz.read(witem.filename))
+            except Exception as e:
+                pass
 
         # Generate tuned server.properties
         props_content = generate_server_properties(analysis.pack_name, port=port)

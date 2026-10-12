@@ -465,8 +465,28 @@
                         </div>
                     </div>
 
-                    <!-- Server Settings Tab -->
+                    <!-- Server Settings & World Import Tab -->
                     <div class="tab-pane fade" id="settings" role="tabpanel">
+                        <!-- World Import Section -->
+                        <div class="card card-elevated p-3 mb-4 border-secondary">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <h6 class="fw-bold text-light mb-0">
+                                    <i class="bi bi-globe-americas text-brand me-2"></i>Import Existing Singleplayer World (from CurseForge / Local)
+                                </h6>
+                                <span class="badge badge-brand">Optional</span>
+                            </div>
+                            <p class="text-secondary small mb-3">
+                                Transfer your local singleplayer world (bases, machines, inventories, quests) to your dedicated multiplayer server. Zip your world folder (e.g. from <code>CurseForge/minecraft/Instances/&lt;Pack&gt;/saves/&lt;WorldName&gt;</code>) and select it below:
+                            </p>
+                            <div class="input-group">
+                                <input type="file" id="world-upload-input" class="form-control" accept=".zip">
+                                <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('world-upload-input').value = ''">Clear</button>
+                            </div>
+                            <div class="form-text text-secondary mt-1">
+                                <i class="bi bi-info-circle me-1"></i>Found in: <code>%USERPROFILE%\curseforge\minecraft\Instances\&lt;Pack Name&gt;\saves\&lt;World&gt;</code>
+                            </div>
+                        </div>
+
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Allocated Server RAM</label>
@@ -896,6 +916,12 @@
         const formData = new FormData();
         if (uploadedFile) formData.append("file", uploadedFile);
         if (remoteDownloadUrl) formData.append("download_url", remoteDownloadUrl);
+
+        const worldInput = document.getElementById('world-upload-input');
+        if (worldInput && worldInput.files.length > 0) {
+            formData.append("world_file", worldInput.files[0]);
+        }
+
         formData.append("selected_mods", JSON.stringify(selectedMods));
         formData.append("ram_gb", ram);
         formData.append("port", port);

@@ -183,7 +183,7 @@ def search_version_mods(
     loader: str = "fabric",
     provider: str = "all",
     api_key: str = None,
-    limit: int = 24
+    limit: int = 50
 ) -> List[Dict[str, Any]]:
     """
     Searches for individual mods strictly filtered to the chosen Minecraft version & loader.

@@ -395,9 +395,14 @@
 
                         <!-- Mod Search and Source Filter -->
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                            <h6 class="fw-bold text-light mb-0"><i class="bi bi-puzzle me-2 text-brand"></i>Available Compatible Mods (<span id="compatible-version-badge" class="text-brand">1.20.1 Fabric</span>):</h6>
-                            <div class="d-flex gap-2" style="max-width: 500px; width: 100%;">
-                                <input type="text" id="builder-mod-search" class="form-control form-control-sm" placeholder="Search Modrinth & CurseForge mods..." onkeypress="if(event.key==='Enter') searchVersionMods()">
+                            <h6 class="fw-bold text-light mb-0"><i class="bi bi-puzzle me-2 text-brand"></i>Available Compatible Mods (<span id="compatible-version-badge" class="text-brand">1.20.1 FABRIC</span>):</h6>
+                            <div class="d-flex gap-2" style="max-width: 580px; width: 100%;">
+                                <input type="text" id="builder-mod-search" class="form-control form-control-sm" placeholder="Search mods by name (e.g. Lithium, JEI, FerriteCore)..." onkeypress="if(event.key==='Enter') searchVersionMods()">
+                                <select id="builder-provider-filter" class="form-select form-select-sm" style="width: 160px;" onchange="searchVersionMods()">
+                                    <option value="all" selected>All Sources</option>
+                                    <option value="modrinth">Modrinth</option>
+                                    <option value="curseforge">CurseForge</option>
+                                </select>
                                 <button class="btn btn-brand btn-sm text-nowrap" onclick="searchVersionMods()">
                                     <i class="bi bi-search me-1"></i> Find Mods
                                 </button>
@@ -1112,25 +1117,31 @@
             builderMods.forEach(mod => {
                 const badgeColor = mod.provider === 'modrinth' ? 'badge-brand' : 'bg-danger';
                 const providerLabel = mod.provider === 'modrinth' ? 'Modrinth' : 'CurseForge';
-                const icon = mod.icon_url || 'https://via.placeholder.com/48';
+                const icon = mod.icon_url || 'https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/static/default-mod.png';
 
                 const card = `
                     <div class="col-md-6 col-lg-4">
-                        <div class="card card-elevated p-3 h-100">
-                            <div class="form-check d-flex align-items-start gap-2">
-                                <input class="form-check-input mt-1 builder-checkbox" type="checkbox" value="${mod.id || mod.slug}" id="builder-mod-${mod.id}" onchange="runCompatibilityTest()">
-                                <div class="flex-grow-1">
+                        <div class="card card-elevated p-3 h-100 d-flex flex-column">
+                            <div class="d-flex align-items-start gap-3">
+                                <input class="form-check-input mt-1 builder-checkbox flex-shrink-0" type="checkbox" value="${mod.id || mod.slug}" id="builder-mod-${mod.id}" onchange="runCompatibilityTest()">
+                                <img src="${icon}" class="rounded flex-shrink-0" style="width: 48px; height: 48px; object-fit: cover; background: #121212;" onerror="this.src='https://via.placeholder.com/48/121a2d/ffffff?text=Mod'">
+                                <div class="flex-grow-1 overflow-hidden">
                                     <div class="d-flex align-items-center justify-content-between mb-1">
-                                        <label class="form-check-label fw-bold text-light text-truncate" style="max-width: 170px;" for="builder-mod-${mod.id}" title="${mod.title}">
+                                        <label class="form-check-label fw-bold text-light text-truncate mb-0" style="max-width: 150px; font-size: 0.95rem;" for="builder-mod-${mod.id}" title="${mod.title}">
                                             ${mod.title}
                                         </label>
-                                        <span class="badge ${badgeColor}">${providerLabel}</span>
+                                        <span class="badge ${badgeColor}" style="font-size: 0.7rem;">${providerLabel}</span>
                                     </div>
-                                    <div class="text-secondary small line-clamp-2" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.8rem;">
-                                        ${mod.description || 'No description provided.'}
+                                    <div class="text-secondary small" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.8rem; line-height: 1.35;">
+                                        ${mod.description || 'Verified compatible with this Minecraft version.'}
                                     </div>
-                                    <div class="text-muted small mt-2">by ${mod.author}</div>
                                 </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-auto pt-2 border-top border-secondary text-muted small" style="font-size: 0.75rem;">
+                                <span>by <strong class="text-light">${mod.author || 'Author'}</strong></span>
+                                <a href="${mod.page_url}" target="_blank" class="text-brand text-decoration-none" title="View Mod Page">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i>View
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -1146,15 +1157,17 @@
 
     function searchVersionMods() {
         const query = document.getElementById('builder-mod-search').value.trim();
+        const provider = document.getElementById('builder-provider-filter').value;
         const loader = document.getElementById('builder-loader').value;
         const mcVer = document.getElementById('builder-mc-version').value;
+        const cfKey = localStorage.getItem('cf_api_key') || '';
         const grid = document.getElementById('builder-catalog-grid');
         const loading = document.getElementById('builder-catalog-loading');
 
         loading.classList.remove('d-none');
         grid.innerHTML = '';
 
-        fetch(`/api/search-mods?q=${encodeURIComponent(query)}&mc_version=${mcVer}&loader=${loader}&provider=all`)
+        fetch(`/api/search-mods?q=${encodeURIComponent(query)}&mc_version=${mcVer}&loader=${loader}&provider=${provider}&cf_key=${encodeURIComponent(cfKey)}`)
         .then(res => res.json())
         .then(data => {
             loading.classList.add('d-none');
@@ -1167,24 +1180,31 @@
             builderMods.forEach(mod => {
                 const badgeColor = mod.provider === 'modrinth' ? 'badge-brand' : 'bg-danger';
                 const providerLabel = mod.provider === 'modrinth' ? 'Modrinth' : 'CurseForge';
+                const icon = mod.icon_url || 'https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/static/default-mod.png';
 
                 const card = `
                     <div class="col-md-6 col-lg-4">
-                        <div class="card card-elevated p-3 h-100">
-                            <div class="form-check d-flex align-items-start gap-2">
-                                <input class="form-check-input mt-1 builder-checkbox" type="checkbox" value="${mod.id || mod.slug}" id="builder-mod-${mod.id}" onchange="runCompatibilityTest()">
-                                <div class="flex-grow-1">
+                        <div class="card card-elevated p-3 h-100 d-flex flex-column">
+                            <div class="d-flex align-items-start gap-3">
+                                <input class="form-check-input mt-1 builder-checkbox flex-shrink-0" type="checkbox" value="${mod.id || mod.slug}" id="builder-mod-${mod.id}" onchange="runCompatibilityTest()">
+                                <img src="${icon}" class="rounded flex-shrink-0" style="width: 48px; height: 48px; object-fit: cover; background: #121212;" onerror="this.src='https://via.placeholder.com/48/121a2d/ffffff?text=Mod'">
+                                <div class="flex-grow-1 overflow-hidden">
                                     <div class="d-flex align-items-center justify-content-between mb-1">
-                                        <label class="form-check-label fw-bold text-light text-truncate" style="max-width: 170px;" for="builder-mod-${mod.id}" title="${mod.title}">
+                                        <label class="form-check-label fw-bold text-light text-truncate mb-0" style="max-width: 150px; font-size: 0.95rem;" for="builder-mod-${mod.id}" title="${mod.title}">
                                             ${mod.title}
                                         </label>
-                                        <span class="badge ${badgeColor}">${providerLabel}</span>
+                                        <span class="badge ${badgeColor}" style="font-size: 0.7rem;">${providerLabel}</span>
                                     </div>
-                                    <div class="text-secondary small" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.8rem;">
-                                        ${mod.description || 'No description provided.'}
+                                    <div class="text-secondary small" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.8rem; line-height: 1.35;">
+                                        ${mod.description || 'Verified compatible with this Minecraft version.'}
                                     </div>
-                                    <div class="text-muted small mt-2">by ${mod.author}</div>
                                 </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-auto pt-2 border-top border-secondary text-muted small" style="font-size: 0.75rem;">
+                                <span>by <strong class="text-light">${mod.author || 'Author'}</strong></span>
+                                <a href="${mod.page_url}" target="_blank" class="text-brand text-decoration-none" title="View Mod Page">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i>View
+                                </a>
                             </div>
                         </div>
                     </div>

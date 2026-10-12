@@ -24,8 +24,34 @@ from api_client import (
     search_curseforge_packs,
     get_modrinth_versions,
     get_curseforge_versions,
+    get_all_minecraft_versions,
+    search_version_mods,
     DEFAULT_CF_API_KEY
 )
+
+@app.get("/api/minecraft-versions")
+async def api_get_minecraft_versions():
+    """Returns all release versions of Minecraft."""
+    versions = get_all_minecraft_versions()
+    return {"versions": versions}
+
+@app.get("/api/search-mods")
+async def api_search_version_mods(
+    q: str = Query("", min_length=0),
+    mc_version: str = Query("1.20.1"),
+    loader: str = Query("fabric"),
+    provider: str = Query("all"),
+    cf_key: str = Query(None)
+):
+    """Searches mods strictly compatible with the selected MC version and loader."""
+    mods = search_version_mods(
+        query=q,
+        mc_version=mc_version,
+        loader=loader,
+        provider=provider,
+        api_key=cf_key or DEFAULT_CF_API_KEY
+    )
+    return {"mc_version": mc_version, "loader": loader, "count": len(mods), "mods": mods}
 
 app = FastAPI(title="Minecraft Server Modpack Converter")
 

@@ -29,6 +29,14 @@ from api_client import (
     DEFAULT_CF_API_KEY
 )
 
+app = FastAPI(title="Minecraft Server Modpack Converter")
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+
+if os.path.exists(os.path.join(BASE_DIR, "static")):
+    app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+
 @app.get("/api/minecraft-versions")
 async def api_get_minecraft_versions():
     """Returns all release versions of Minecraft."""
@@ -52,14 +60,6 @@ async def api_search_version_mods(
         api_key=cf_key or DEFAULT_CF_API_KEY
     )
     return {"mc_version": mc_version, "loader": loader, "count": len(mods), "mods": mods}
-
-app = FastAPI(title="Minecraft Server Modpack Converter")
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
-
-if os.path.exists(os.path.join(BASE_DIR, "static")):
-    app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index(request: Request):

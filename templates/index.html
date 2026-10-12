@@ -8,12 +8,12 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         :root {
-            /* Project color palette: Deep sleek dark theme with emerald/teal accents */
+            /* Sleek dark palette with brand emerald/teal accents */
             --bg-main: #121212;
             --bg-surface: #1e1e1e;
             --bg-elevated: #282828;
             --border-color: #383838;
-            --accent-primary: #41b883;       /* Brand Emerald / Vue teal */
+            --accent-primary: #41b883;       /* Brand emerald/teal */
             --accent-primary-hover: #34976c;
             --accent-blue: #3b82f6;
             --accent-purple: #8b5cf6;
@@ -39,13 +39,13 @@
         .card {
             background-color: var(--bg-surface);
             border: 1px solid var(--border-color);
-            border-radius: 10px;
+            border-radius: 12px;
         }
 
         .card-elevated {
             background-color: var(--bg-elevated);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
+            border-radius: 10px;
         }
 
         .btn-brand {
@@ -71,7 +71,7 @@
 
         .dropzone {
             border: 2px dashed #4a4a4a;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 40px 20px;
             text-align: center;
             background: rgba(24, 24, 27, 0.4);
@@ -90,7 +90,8 @@
             color: var(--text-secondary);
             border: none;
             border-bottom: 2px solid transparent;
-            padding: 10px 16px;
+            padding: 10px 18px;
+            font-weight: 500;
         }
         .nav-tabs .nav-link.active {
             color: var(--accent-primary);
@@ -109,20 +110,54 @@
             box-shadow: 0 0 0 0.25rem rgba(65, 184, 131, 0.25) !important;
         }
 
-        .table-dark {
-            --bs-table-bg: var(--bg-surface);
-            --bs-table-border-color: var(--border-color);
-        }
-
-        .search-result-card {
+        /* Modpack Grid Card Styling */
+        .modpack-grid-card {
             background-color: var(--bg-elevated);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
-            transition: transform 0.15s ease, border-color 0.15s ease;
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            height: 100%;
         }
-        .search-result-card:hover {
-            transform: translateY(-2px);
+        .modpack-grid-card:hover {
+            transform: translateY(-4px);
             border-color: var(--accent-primary);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 15px rgba(65, 184, 131, 0.15);
+        }
+        .modpack-card-img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            background-color: #1a1a1a;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .modpack-card-body {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+        .modpack-card-title {
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: #ffffff;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .modpack-card-desc {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 14px;
+            line-height: 1.4;
+            flex-grow: 1;
         }
     </style>
 </head>
@@ -148,54 +183,65 @@
 
 <div class="container my-5">
     <div class="row justify-content-center">
-        <div class="col-lg-10">
+        <div class="col-lg-11">
 
             <!-- Hero Section -->
             <div class="text-center mb-5">
-                <h1 class="display-5 fw-bold mb-3">Convert Client Modpacks into Dedicated Servers</h1>
-                <p class="lead text-secondary mx-auto" style="max-width: 650px;">
-                    Search Modrinth & CurseForge or upload modpacks. Automatically purges client crashing mods, injects matching performance mods, and generates production server bundles.
+                <h1 class="display-5 fw-bold mb-3">Browse & Convert Minecraft Modpacks</h1>
+                <p class="lead text-secondary mx-auto" style="max-width: 680px;">
+                    Explore popular modpacks or upload your own. Strips client-only crashing mods, injects high-efficiency server performance mods, and generates clean server bundles.
                 </p>
             </div>
 
-            <!-- Main Input Tabs (Upload vs Search Online) -->
+            <!-- Main Input Tabs (Explore Grid vs Upload) -->
             <div class="card p-4 shadow-lg mb-4" id="input-card">
                 <ul class="nav nav-tabs mb-4" id="inputTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="search-tab-btn" data-bs-toggle="tab" data-bs-target="#search-tab-pane" type="button">
-                            <i class="bi bi-search me-2"></i>Search Online (CurseForge & Modrinth)
+                        <button class="nav-link active" id="explore-tab-btn" data-bs-toggle="tab" data-bs-target="#explore-tab-pane" type="button">
+                            <i class="bi bi-grid-3x3-gap-fill me-2"></i>Browse Modpack Catalog
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="upload-tab-btn" data-bs-toggle="tab" data-bs-target="#upload-tab-pane" type="button">
-                            <i class="bi bi-cloud-arrow-up me-2"></i>Upload File (.zip / .mrpack)
+                            <i class="bi bi-cloud-arrow-up me-2"></i>Upload Local Archive (.zip / .mrpack)
                         </button>
                     </li>
                 </ul>
 
                 <div class="tab-content" id="inputTabsContent">
                     
-                    <!-- Search Tab -->
-                    <div class="tab-pane fade show active" id="search-tab-pane" role="tabpanel">
-                        <div class="input-group mb-3">
-                            <input type="text" id="online-search-input" class="form-control form-control-lg" placeholder="Search modpacks (e.g. Star Technology, All the Mods, Prominence)...">
-                            <select id="search-provider-select" class="form-select flex-grow-0" style="width: 170px;">
-                                <option value="all">All Providers</option>
-                                <option value="modrinth">Modrinth Only</option>
-                                <option value="curseforge">CurseForge Only</option>
-                            </select>
-                            <button class="btn btn-brand btn-lg px-4" onclick="performOnlineSearch()">
-                                <i class="bi bi-search me-1"></i> Search
-                            </button>
+                    <!-- Explore / Search Tab -->
+                    <div class="tab-pane fade show active" id="explore-tab-pane" role="tabpanel">
+                        <!-- Search and Filter Bar -->
+                        <div class="row g-2 mb-4 align-items-center">
+                            <div class="col-md-7">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-elevated border-secondary text-secondary"><i class="bi bi-search"></i></span>
+                                    <input type="text" id="catalog-search-input" class="form-control form-control-lg" placeholder="Search by name (e.g. Star Technology, All the Mods, Better MC)..." onkeypress="handleSearchKey(event)">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <select id="search-provider-select" class="form-select form-select-lg" onchange="fetchCatalog()">
+                                    <option value="all">All Providers</option>
+                                    <option value="modrinth">Modrinth Only</option>
+                                    <option value="curseforge">CurseForge Only</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-grid">
+                                <button class="btn btn-brand btn-lg" onclick="fetchCatalog()">
+                                    Filter / Search
+                                </button>
+                            </div>
                         </div>
 
-                        <div id="search-loading" class="text-center py-4 d-none">
+                        <!-- Loading Spinner -->
+                        <div id="catalog-loading" class="text-center py-5">
                             <div class="spinner-border text-brand" role="status"></div>
-                            <div class="text-secondary small mt-2">Searching CurseForge & Modrinth catalogs...</div>
+                            <div class="text-secondary small mt-2">Loading modpack catalog...</div>
                         </div>
 
-                        <!-- Results List -->
-                        <div id="search-results-container" class="d-flex flex-column gap-3 mt-3">
+                        <!-- MODPACK GRID -->
+                        <div id="modpack-grid" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
                             <!-- Populated dynamically -->
                         </div>
                     </div>
@@ -237,7 +283,7 @@
                         </div>
                     </div>
                     <button class="btn btn-outline-secondary btn-sm" onclick="resetConverter()">
-                        <i class="bi bi-arrow-repeat me-1"></i> Start Over
+                        <i class="bi bi-arrow-repeat me-1"></i> Choose Another Pack
                     </button>
                 </div>
 
@@ -402,7 +448,7 @@
                 <label class="form-label fw-bold">CurseForge API Key</label>
                 <input type="text" id="curseforge-key-input" class="form-control" placeholder="$2a$10$...">
                 <div class="form-text text-secondary">
-                    Your key is saved locally in your browser. (Modrinth does not require an API key).
+                    Saved locally in your browser.
                 </div>
             </div>
             <div class="modal-footer border-secondary">
@@ -446,6 +492,7 @@
         const val = document.getElementById('curseforge-key-input').value.trim();
         localStorage.setItem('cf_api_key', val);
         bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+        fetchCatalog();
     }
 
     // Drag & drop handlers
@@ -492,53 +539,65 @@
         });
     }
 
-    // Online Search Function
-    function performOnlineSearch() {
-        const query = document.getElementById('online-search-input').value.trim();
-        if (!query) return;
+    function handleSearchKey(e) {
+        if (e.key === 'Enter') fetchCatalog();
+    }
 
+    // Format download counts
+    function formatDownloads(num) {
+        if (!num) return '0';
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+        if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+        return num.toString();
+    }
+
+    // Fetch and render the Modpack Grid
+    function fetchCatalog() {
+        const query = document.getElementById('catalog-search-input').value.trim();
         const provider = document.getElementById('search-provider-select').value;
         const cfKey = localStorage.getItem('cf_api_key') || '';
-        const loading = document.getElementById('search-loading');
-        const resultsBox = document.getElementById('search-results-container');
+        const loading = document.getElementById('catalog-loading');
+        const grid = document.getElementById('modpack-grid');
 
         loading.classList.remove('d-none');
-        resultsBox.innerHTML = '';
+        grid.innerHTML = '';
 
         fetch(`/api/search?q=${encodeURIComponent(query)}&provider=${provider}&cf_key=${encodeURIComponent(cfKey)}`)
         .then(res => res.json())
         .then(data => {
             loading.classList.add('d-none');
             if (data.results.length === 0) {
-                resultsBox.innerHTML = `<div class="text-center text-secondary py-4">No modpacks found for "${query}". Try another query.</div>`;
+                grid.innerHTML = `<div class="col-12 text-center text-secondary py-5">No modpacks found. Try a different search term.</div>`;
                 return;
             }
 
             data.results.forEach(pack => {
                 const badgeColor = pack.provider === 'modrinth' ? 'badge-brand' : 'bg-danger';
                 const providerLabel = pack.provider === 'modrinth' ? 'Modrinth' : 'CurseForge';
-                const icon = pack.icon_url || 'https://via.placeholder.com/64';
+                const icon = pack.icon_url || 'https://via.placeholder.com/300x150/1e1e1e/ffffff?text=Minecraft+Modpack';
 
-                resultsBox.innerHTML += `
-                    <div class="search-result-card p-3 d-flex gap-3 align-items-center">
-                        <img src="${icon}" class="rounded" style="width: 56px; height: 56px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/56'">
-                        <div class="flex-grow-1">
-                            <div class="d-flex align-items-center gap-2 mb-1">
-                                <span class="badge ${badgeColor}">${providerLabel}</span>
-                                <h6 class="mb-0 fw-bold text-light">${pack.title}</h6>
-                                <span class="text-secondary small">by ${pack.author}</span>
+                grid.innerHTML += `
+                    <div class="col">
+                        <div class="modpack-grid-card">
+                            <img src="${icon}" class="modpack-card-img" onerror="this.src='https://via.placeholder.com/300x150/1e1e1e/ffffff?text=Modpack'">
+                            <div class="modpack-card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="badge ${badgeColor}">${providerLabel}</span>
+                                    <span class="text-secondary small"><i class="bi bi-download me-1"></i>${formatDownloads(pack.downloads)}</span>
+                                </div>
+                                <h5 class="modpack-card-title" title="${pack.title}">${pack.title}</h5>
+                                <div class="text-muted small mb-2">by ${pack.author}</div>
+                                <p class="modpack-card-desc">${pack.description || 'No description available for this pack.'}</p>
+                                
+                                <div class="d-flex gap-2 mt-auto pt-2 border-top border-secondary">
+                                    <a href="${pack.page_url}" target="_blank" class="btn btn-outline-secondary btn-sm" title="Modpack Web Page">
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                    <button class="btn btn-brand btn-sm flex-grow-1" onclick="selectOnlinePack('${pack.provider}', '${pack.id}', '${escape(pack.title)}')">
+                                        <i class="bi bi-gear-wide-connected me-1"></i> Convert to Server
+                                    </button>
+                                </div>
                             </div>
-                            <div class="text-secondary small text-truncate" style="max-width: 600px;">
-                                ${pack.description || 'No description available'}
-                            </div>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <a href="${pack.page_url}" target="_blank" class="btn btn-outline-secondary btn-sm" title="View Modpack Page">
-                                <i class="bi bi-box-arrow-up-right"></i>
-                            </a>
-                            <button class="btn btn-brand btn-sm" onclick="selectOnlinePack('${pack.provider}', '${pack.id}', '${escape(pack.title)}')">
-                                Select Version <i class="bi bi-arrow-right ms-1"></i>
-                            </button>
                         </div>
                     </div>
                 `;
@@ -546,7 +605,7 @@
         })
         .catch(err => {
             loading.classList.add('d-none');
-            alert("Search failed: " + err);
+            alert("Error loading catalog: " + err);
         });
     }
 
@@ -566,8 +625,8 @@
         .then(res => res.json())
         .then(data => {
             loading.classList.add('d-none');
-            if (data.versions.length === 0) {
-                listGroup.innerHTML = '<div class="text-center text-secondary py-3">No compatible files found.</div>';
+            if (!data.versions || data.versions.length === 0) {
+                listGroup.innerHTML = '<div class="text-center text-secondary py-3">No compatible files found for automated download.</div>';
                 return;
             }
 
@@ -684,6 +743,7 @@
         currentAnalysis = null;
         uploadedFile = null;
         remoteDownloadUrl = null;
+        fetchCatalog();
     }
 
     function generatePack(additionalOnly = false) {
@@ -740,6 +800,11 @@
         icon.className = 'bi bi-check2';
         setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 2000);
     }
+
+    // Auto-load popular catalog on initial page view
+    window.addEventListener('DOMContentLoaded', () => {
+        fetchCatalog();
+    });
 </script>
 
 </body>

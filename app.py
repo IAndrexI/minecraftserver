@@ -41,7 +41,7 @@ async def serve_index(request: Request):
 
 @app.get("/api/search")
 async def api_search_modpacks(
-    q: str = Query(..., min_length=1),
+    q: str = Query("", min_length=0),
     provider: str = Query("all"),  # all, modrinth, curseforge
     cf_key: str = Query(None)
 ):

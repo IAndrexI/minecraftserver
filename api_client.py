@@ -17,16 +17,19 @@ CURSEFORGE_API = "https://api.curseforge.com/v1"
 # Default CurseForge Key provided by the user
 DEFAULT_CF_API_KEY = os.getenv("CF_API_KEY", "$2a$10$L4p7ZjoaaSXzBxrUGl8UXeSOEEKJWQJ5PoHVqwVbbTItG/4EPrmMK")
 
-def search_modrinth_packs(query: str, limit: int = 15) -> List[Dict[str, Any]]:
-    """Searches for modpacks on Modrinth."""
+def search_modrinth_packs(query: str = "", limit: int = 24) -> List[Dict[str, Any]]:
+    """Searches for modpacks on Modrinth, or gets popular ones if query is empty."""
     try:
         url = f"{MODRINTH_API}/search"
         facets = [["project_type:modpack"]]
         params = {
-            "query": query,
             "facets": json.dumps(facets),
-            "limit": limit
+            "limit": limit,
+            "index": "downloads"
         }
+        if query:
+            params["query"] = query
+
         res = requests.get(url, params=params, timeout=6)
         if res.status_code == 200:
             hits = res.json().get("hits", [])
@@ -39,7 +42,7 @@ def search_modrinth_packs(query: str, limit: int = 15) -> List[Dict[str, Any]]:
                     "description": h.get("description"),
                     "icon_url": h.get("icon_url"),
                     "author": h.get("author"),
-                    "downloads": h.get("downloads"),
+                    "downloads": h.get("downloads", 0),
                     "versions": h.get("versions", []),
                     "categories": h.get("categories", []),
                     "provider": "modrinth",
@@ -50,7 +53,7 @@ def search_modrinth_packs(query: str, limit: int = 15) -> List[Dict[str, Any]]:
         logger.warning(f"Modrinth search error: {e}")
     return []
 
-def search_curseforge_packs(query: str, api_key: str = None, limit: int = 15) -> List[Dict[str, Any]]:
+def search_curseforge_packs(query: str = "", api_key: str = None, limit: int = 24) -> List[Dict[str, Any]]:
     """Searches for modpacks on CurseForge using the v1 API."""
     key = api_key or DEFAULT_CF_API_KEY
     if not key:
@@ -66,11 +69,12 @@ def search_curseforge_packs(query: str, api_key: str = None, limit: int = 15) ->
         params = {
             "gameId": 432,           # Minecraft
             "classId": 4471,         # Modpacks
-            "searchFilter": query,
             "pageSize": limit,
             "sortField": 2,          # Popularity
             "sortOrder": "desc"
         }
+        if query:
+            params["searchFilter"] = query
         res = requests.get(url, headers=headers, params=params, timeout=6)
         if res.status_code == 200:
             data = res.json().get("data", [])

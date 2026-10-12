@@ -79,10 +79,10 @@ def test_mod_compatibility(
                 break
 
     # 3. Check for core loader APIs
-    if loader.lower() == "fabric":
-        has_fabric_api = any("fabricapi" in nid or "fabriclanguagekotlin" in nid for nid in normalized_ids)
-        if not has_fabric_api and len(mods_list) > 2:
-            report.warnings.append("Notice: 'Fabric API' was not explicitly detected. Most Fabric mods require Fabric API to start.")
+    if loader.lower() in ["fabric", "quilt"]:
+        has_api = any("fabricapi" in nid or "qsl" in nid or "quilt" in nid for nid in normalized_ids)
+        if not has_api and len(mods_list) > 2:
+            report.warnings.append(f"Notice: Core API (Fabric API / QSL) was not explicitly detected. Most {loader.upper()} mods require it.")
 
     # 4. Generate summary
     if report.errors:

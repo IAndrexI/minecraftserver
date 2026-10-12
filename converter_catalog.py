@@ -306,6 +306,9 @@ EXPANDED_SERVER_MODS_CATALOG = {
     ]
 }
 
+# Quilt is fully compatible with Fabric server mods plus standard Quilt Standard Libraries (QSL)
+EXPANDED_SERVER_MODS_CATALOG["quilt"] = EXPANDED_SERVER_MODS_CATALOG["fabric"]
+
 # Alias for backwards compatibility
 SERVER_PERFORMANCE_CATALOG = {
     loader: {m["mod_id"]: m for m in mods}

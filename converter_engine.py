@@ -135,27 +135,271 @@ def classify_mod_side(filename: str, jar_data: Optional[bytes] = None) -> str:
 
     return "both"
 
-def query_modrinth_version(project_slug: str, mc_version: str, loader: str) -> Optional[Dict[str, str]]:
-    """Fetches compatible file download for a server-side mod from Modrinth API."""
+def resolve_loader_version(loader: str, mc_version: str) -> str:
+    """
+    Resolves the recommended/latest modloader version for a given Minecraft version
+    so that CurseForge manifest.json and Modrinth modrinth.index.json have exact valid loader IDs.
+    """
+    loader_norm = loader.lower().strip()
+    try:
+        if loader_norm == "fabric":
+            res = requests.get(f"https://meta.fabricmc.net/v2/versions/loader/{mc_version}", timeout=5)
+            if res.status_code == 200:
+                data = res.json()
+                if data and isinstance(data, list):
+                    return data[0].get("loader", {}).get("version", "0.16.10")
+            return "0.16.10"
+
+        elif loader_norm == "quilt":
+            res = requests.get(f"https://meta.quiltmc.org/v3/versions/loader/{mc_version}", timeout=5)
+            if res.status_code == 200:
+                data = res.json()
+                if data and isinstance(data, list):
+                    return data[0].get("loader", {}).get("version", "0.26.4")
+            return "0.26.4"
+
+        elif loader_norm == "forge":
+            res = requests.get("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json", timeout=5)
+            if res.status_code == 200:
+                promos = res.json().get("promos", {})
+                ver = promos.get(f"{mc_version}-recommended") or promos.get(f"{mc_version}-latest")
+                if ver:
+                    return ver
+            # Common fallbacks by MC version
+            forge_fallbacks = {
+                "1.20.1": "47.3.0",
+                "1.19.2": "43.4.0",
+                "1.18.2": "40.2.21",
+                "1.16.5": "36.2.42",
+                "1.12.2": "14.23.5.2860"
+            }
+            return forge_fallbacks.get(mc_version, "47.3.0")
+
+        elif loader_norm == "neoforge":
+            res = requests.get("https://maven.neoforged.net/api/maven/versions/releases/net/neoforged/neoforge", timeout=5)
+            if res.status_code == 200:
+                versions = res.json().get("versions", [])
+                # NeoForge versions match MC minor.patch (e.g. MC 1.21.1 -> 21.1.x, MC 1.20.4 -> 20.4.x)
+                parts = mc_version.split(".")
+                if len(parts) >= 2:
+                    prefix = f"{parts[1]}.{parts[2]}." if len(parts) >= 3 else f"{parts[1]}.0."
+                    matching = [v for v in versions if v.startswith(prefix) and "beta" not in v]
+                    if matching:
+                        return matching[-1]
+            return "21.1.77" if mc_version.startswith("1.21") else "20.4.237"
+    except Exception as e:
+        logger.warning(f"Loader version lookup failed for {loader} {mc_version}: {e}")
+
+    defaults = {"fabric": "0.16.10", "quilt": "0.26.4", "forge": "47.3.0", "neoforge": "21.1.77"}
+    return defaults.get(loader_norm, "0.16.10")
+
+
+def query_modrinth_version(project_slug: str, mc_version: str, loader: str) -> Optional[Dict[str, Any]]:
+    """Fetches compatible file download and hash metadata for a mod from Modrinth API."""
     try:
         url = f"{MODRINTH_API_BASE}/project/{project_slug}/version"
         params = {
             "game_versions": json.dumps([mc_version]),
-            "loaders": json.dumps([loader])
+            "loaders": json.dumps([loader.lower()])
         }
-        res = requests.get(url, params=params, timeout=5)
+        res = requests.get(url, params=params, timeout=6)
         if res.status_code == 200:
             versions = res.json()
             if versions:
-                primary_file = versions[0]["files"][0]
-                return {
-                    "filename": primary_file["filename"],
-                    "url": primary_file["url"],
-                    "version_number": versions[0]["version_number"]
-                }
+                v = versions[0]
+                files = v.get("files", [])
+                primary_file = next((f for f in files if f.get("primary")), files[0] if files else None)
+                if primary_file:
+                    return {
+                        "provider": "modrinth",
+                        "project_id": v.get("project_id", project_slug),
+                        "version_id": v.get("id"),
+                        "filename": primary_file["filename"],
+                        "url": primary_file["url"],
+                        "hashes": primary_file.get("hashes", {}),
+                        "size": primary_file.get("size", 0),
+                        "version_number": v.get("version_number", "1.0.0")
+                    }
     except Exception as e:
         logger.warning(f"Modrinth lookup failed for {project_slug}: {e}")
     return None
+
+
+def query_curseforge_mod_file(mod_id_or_slug: str, mc_version: str, loader: str, api_key: str) -> Optional[Dict[str, Any]]:
+    """Fetches compatible CurseForge mod file metadata (projectID, fileID, downloadUrl, hashes)."""
+    if not api_key:
+        return None
+    headers = {"x-api-key": api_key, "Accept": "application/json"}
+    loader_type_map = {"forge": 1, "fabric": 4, "quilt": 5, "neoforge": 6}
+    loader_type = loader_type_map.get(loader.lower(), 4)
+
+    try:
+        mod_id = str(mod_id_or_slug).strip()
+        # If slug was passed instead of numeric ID, search by slug first
+        if not mod_id.isdigit():
+            s_res = requests.get(
+                "https://api.curseforge.com/v1/mods/search",
+                headers=headers,
+                params={"gameId": 432, "classId": 6, "slug": mod_id},
+                timeout=6
+            )
+            if s_res.status_code == 200:
+                s_data = s_res.json().get("data", [])
+                if s_data:
+                    mod_id = str(s_data[0]["id"])
+                else:
+                    return None
+            else:
+                return None
+
+        files_url = f"https://api.curseforge.com/v1/mods/{mod_id}/files"
+        params = {
+            "gameVersion": mc_version,
+            "modLoaderType": loader_type,
+            "pageSize": 5
+        }
+        res = requests.get(files_url, headers=headers, params=params, timeout=6)
+        if res.status_code == 200:
+            files = res.json().get("data", [])
+            if files:
+                f = files[0]
+                file_id = f.get("id")
+                filename = f.get("fileName")
+                dl_url = f.get("downloadUrl")
+                if not dl_url and file_id and filename:
+                    # Standard CurseForge edge CDN fallback when downloadUrl is null
+                    fid_str = str(file_id)
+                    dl_url = f"https://edge.forgecdn.net/files/{fid_str[:4]}/{int(fid_str[4:])}/{filename}"
+                hashes = {}
+                for h in f.get("hashes", []):
+                    if h.get("algo") == 1:
+                        hashes["sha1"] = h.get("value")
+                    elif h.get("algo") == 2:
+                        hashes["md5"] = h.get("value")
+                return {
+                    "provider": "curseforge",
+                    "project_id": int(mod_id),
+                    "file_id": int(file_id),
+                    "filename": filename,
+                    "url": dl_url,
+                    "hashes": hashes,
+                    "size": f.get("fileLength", 0),
+                    "version_number": f.get("displayName", filename)
+                }
+    except Exception as e:
+        logger.warning(f"CurseForge lookup failed for {mod_id_or_slug}: {e}")
+    return None
+
+
+def build_curseforge_pack_bytes(
+    pack_name: str,
+    mc_version: str,
+    loader: str,
+    loader_version: str,
+    cf_manifest_files: List[Dict[str, Any]],
+    modlist_entries: List[Dict[str, str]],
+    override_mods: List[Tuple[str, bytes]],
+    extra_overrides: Optional[Dict[str, bytes]] = None
+) -> bytes:
+    """
+    Creates a 100% CurseForge-compliant modpack .zip containing:
+      - manifest.json
+      - modlist.html
+      - overrides/ (with any non-CF mods or config files)
+    """
+    buf = io.BytesIO()
+    loader_norm = loader.lower()
+    cf_loader_id = f"{loader_norm}-{loader_version}"
+
+    manifest = {
+        "minecraft": {
+            "version": mc_version,
+            "modLoaders": [
+                {
+                    "id": cf_loader_id,
+                    "primary": True
+                }
+            ]
+        },
+        "manifestType": "minecraftModpack",
+        "manifestVersion": 1,
+        "name": pack_name,
+        "version": "1.0.0",
+        "author": "Protutech",
+        "files": cf_manifest_files,
+        "overrides": "overrides"
+    }
+
+    modlist_lines = ["<ul>"]
+    for item in modlist_entries:
+        title = item.get("title") or item.get("filename") or "Mod"
+        author = item.get("author") or "Author"
+        page_url = item.get("page_url") or "#"
+        modlist_lines.append(f'<li><a href="{page_url}">{title} (by {author})</a></li>')
+    modlist_lines.append("</ul>")
+    modlist_html = "\n".join(modlist_lines)
+
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("manifest.json", json.dumps(manifest, indent=2))
+        zf.writestr("modlist.html", modlist_html)
+        for fname, fbytes in override_mods:
+            zf.writestr(f"overrides/mods/{fname}", fbytes)
+        if extra_overrides:
+            for rel_path, data in extra_overrides.items():
+                zf.writestr(f"overrides/{rel_path}", data)
+
+    buf.seek(0)
+    return buf.read()
+
+
+def build_modrinth_mrpack_bytes(
+    pack_name: str,
+    mc_version: str,
+    loader: str,
+    loader_version: str,
+    mr_index_files: List[Dict[str, Any]],
+    override_mods: List[Tuple[str, bytes]],
+    extra_overrides: Optional[Dict[str, bytes]] = None
+) -> bytes:
+    """
+    Creates a 100% Modrinth-compliant .mrpack archive containing:
+      - modrinth.index.json
+      - overrides/ (with any non-Modrinth CDN mods or config files)
+    """
+    buf = io.BytesIO()
+    loader_norm = loader.lower()
+    dep_key_map = {
+        "fabric": "fabric-loader",
+        "quilt": "quilt-loader",
+        "forge": "forge",
+        "neoforge": "neoforge"
+    }
+    loader_dep_key = dep_key_map.get(loader_norm, "fabric-loader")
+
+    index_data = {
+        "formatVersion": 1,
+        "game": "minecraft",
+        "versionId": "1.0.0",
+        "name": pack_name,
+        "summary": f"{pack_name} for Minecraft {mc_version} ({loader.upper()})",
+        "files": mr_index_files,
+        "dependencies": {
+            "minecraft": mc_version,
+            loader_dep_key: loader_version
+        }
+    }
+
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("modrinth.index.json", json.dumps(index_data, indent=2))
+        for fname, fbytes in override_mods:
+            zf.writestr(f"overrides/mods/{fname}", fbytes)
+        if extra_overrides:
+            for rel_path, data in extra_overrides.items():
+                zf.writestr(f"overrides/{rel_path}", data)
+
+    buf.seek(0)
+    return buf.read()
+
 
 def analyze_modpack(file_bytes: bytes, original_filename: str) -> Tuple[ModpackAnalysis, zipfile.ZipFile]:
     analysis = ModpackAnalysis()

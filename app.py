@@ -8,6 +8,7 @@ import io
 import json
 import zipfile
 import requests
+import hashlib
 from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException, Query
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -17,7 +18,11 @@ from converter_engine import (
     analyze_modpack,
     generate_server_properties,
     generate_run_scripts,
+     resolve_loader_version,
     query_modrinth_version,
+    query_curseforge_mod_file,
+    build_curseforge_pack_bytes,
+    build_modrinth_mrpack_bytes,
     classify_mod_side
 )
 from api_client import (
@@ -123,61 +128,235 @@ async def api_create_custom_pack(
     selected_mods_json: str = Form("[]"),
     export_target: str = Form("dual"),
     ram_gb: int = Form(6),
-    port: int = Form(25565)
+    port: int = Form(25565),
+    cf_key: str = Form(None)
 ):
     """
     Builds a custom modpack from selected mods from scratch.
     Supports exporting:
-      - 'dual': separate 'client/' and 'server/' folders inside one unified ZIP archive.
-      - 'server': dedicated server package ready for host / Docker.
-      - 'client': client modpack package ready for launcher / players.
+      - 'curseforge': CurseForge-ready .zip (manifest.json + modlist.html + overrides/)
+      - 'modrinth': Modrinth-ready .mrpack (modrinth.index.json + overrides/)
+      - 'dual': Unified archive containing CurseForge .zip, Modrinth .mrpack, client/ folder, and server/ folder
+      - 'server': Dedicated server package ready for host / Docker / CurseForge Server Pack upload
+      - 'client': Client modpack package ready for launcher / players
     """
-    import json
-    import requests
-    slugs = json.loads(selected_mods_json)
-    out_buffer = io.BytesIO()
+    raw_items = json.loads(selected_mods_json)
+    effective_cf_key = cf_key or DEFAULT_CF_API_KEY
+    loader_version = resolve_loader_version(loader, mc_version)
+
+    # Normalize selected items (can be string IDs/slugs or dicts with metadata)
+    normalized_mods = []
+    for item in raw_items:
+        if isinstance(item, dict):
+            normalized_mods.append({
+                "id": str(item.get("id") or item.get("slug") or ""),
+                "slug": str(item.get("slug") or item.get("id") or ""),
+                "provider": item.get("provider") or ("curseforge" if str(item.get("id", "")).isdigit() else "modrinth"),
+                "title": item.get("title") or item.get("slug") or "Mod",
+                "author": item.get("author") or "Author",
+                "page_url": item.get("page_url") or ""
+            })
+        else:
+            s_val = str(item)
+            normalized_mods.append({
+                "id": s_val,
+                "slug": s_val,
+                "provider": "curseforge" if s_val.isdigit() else "modrinth",
+                "title": s_val,
+                "author": "Author",
+                "page_url": ""
+            })
 
     # Pre-test compatibility
-    test_mods = [{"project_id": s} for s in slugs]
+    test_mods = [{"project_id": m["slug"] or m["id"]} for m in normalized_mods]
     report = test_mod_compatibility(test_mods, loader=loader, mc_version=mc_version)
 
-    downloaded = []  # List of tuples: (filename, bytes, side)
-    for slug in slugs:
-        file_info = query_modrinth_version(slug, mc_version, loader)
-        if file_info:
-            try:
-                r = requests.get(file_info["url"], timeout=10)
-                if r.status_code == 200:
-                    side = classify_mod_side(file_info["filename"], r.content)
-                    downloaded.append((file_info["filename"], r.content, side))
-            except Exception:
-                pass
+    downloaded = []          # List of dicts with filename, bytes, side, mr_info, cf_info, meta
+    cf_manifest_files = []   # [{"projectID": int, "fileID": int, "required": True}]
+    cf_modlist_entries = []  # [{"title": ..., "author": ..., "page_url": ...}]
+    cf_override_mods = []    # [(filename, bytes)] for mods not on CurseForge
+    mr_index_files = []      # Modrinth modrinth.index.json files array
+    mr_override_mods = []    # [(filename, bytes)] for mods not on Modrinth CDN
 
-    server_mods = [d for d in downloaded if d[2] in ["server", "both"]]
-    client_mods = [d for d in downloaded if d[2] in ["client", "both"]]
+    seen_cf_projects = set()
+    seen_filenames = set()
 
+    for m in normalized_mods:
+        mr_info = None
+        cf_info = None
+
+        # 1. Try primary provider first, then cross-resolve so both CF & MR manifests are populated
+        if m["provider"] == "curseforge":
+            cf_info = query_curseforge_mod_file(m["id"], mc_version, loader, effective_cf_key)
+            if m["slug"] and not m["slug"].isdigit():
+                mr_info = query_modrinth_version(m["slug"], mc_version, loader)
+        else:
+            mr_info = query_modrinth_version(m["id"] or m["slug"], mc_version, loader)
+            if not mr_info and m["slug"]:
+                mr_info = query_modrinth_version(m["slug"], mc_version, loader)
+            if m["slug"]:
+                cf_info = query_curseforge_mod_file(m["slug"], mc_version, loader, effective_cf_key)
+
+        # Download JAR bytes from whichever provider resolved
+        dl_url = (mr_info and mr_info.get("url")) or (cf_info and cf_info.get("url"))
+        fname = (mr_info and mr_info.get("filename")) or (cf_info and cf_info.get("filename"))
+        if not dl_url or not fname or fname in seen_filenames:
+            continue
+
+        jar_bytes = None
+        try:
+            r = requests.get(dl_url, timeout=12)
+            if r.status_code == 200:
+                jar_bytes = r.content
+        except Exception:
+            pass
+
+        if not jar_bytes:
+            continue
+
+        seen_filenames.add(fname)
+        side = classify_mod_side(fname, jar_bytes)
+
+        downloaded.append({
+            "filename": fname,
+            "bytes": jar_bytes,
+            "side": side,
+            "meta": m
+        })
+
+        # Populate CurseForge manifest entry or fallback to CF overrides/mods/
+        if cf_info and cf_info.get("project_id") and cf_info.get("file_id"):
+            pid = int(cf_info["project_id"])
+            fid = int(cf_info["file_id"])
+            if pid not in seen_cf_projects:
+                seen_cf_projects.add(pid)
+                cf_manifest_files.append({
+                    "projectID": pid,
+                    "fileID": fid,
+                    "required": True
+                })
+                cf_modlist_entries.append({
+                    "title": m["title"],
+                    "author": m["author"],
+                    "page_url": m["page_url"] or f"https://www.curseforge.com/minecraft/mc-mods/{m['slug']}"
+                })
+        else:
+            if side in ["client", "both"]:
+                cf_override_mods.append((fname, jar_bytes))
+                cf_modlist_entries.append({
+                    "title": m["title"],
+                    "author": m["author"],
+                    "page_url": m["page_url"] or f"https://modrinth.com/mod/{m['slug']}"
+                })
+
+        # Populate Modrinth modrinth.index.json entry or fallback to MR overrides/mods/
+        if mr_info and mr_info.get("url", "").startswith("https://cdn.modrinth.com/"):
+            hashes = mr_info.get("hashes", {})
+            sha1_val = hashes.get("sha1") or hashlib.sha1(jar_bytes).hexdigest()
+            sha512_val = hashes.get("sha512") or hashlib.sha512(jar_bytes).hexdigest()
+            env_dict = {
+                "client": "required" if side in ["client", "both"] else "unsupported",
+                "server": "required" if side in ["server", "both"] else "unsupported"
+            }
+            mr_index_files.append({
+                "path": f"mods/{fname}",
+                "hashes": {
+                    "sha1": sha1_val,
+                    "sha512": sha512_val
+                },
+                "env": env_dict,
+                "downloads": [mr_info["url"]],
+                "fileSize": len(jar_bytes)
+            })
+        else:
+            if side in ["client", "both"]:
+                mr_override_mods.append((fname, jar_bytes))
+
+    server_mods = [(d["filename"], d["bytes"], d["side"]) for d in downloaded if d["side"] in ["server", "both"]]
+    client_mods = [(d["filename"], d["bytes"], d["side"]) for d in downloaded if d["side"] in ["client", "both"]]
+    safe_pack_name = pack_name.replace(" ", "_")
+
+    # Direct CurseForge Modpack Export (.zip)
+    if export_target == "curseforge":
+        cf_bytes = build_curseforge_pack_bytes(
+            pack_name=pack_name,
+            mc_version=mc_version,
+            loader=loader,
+            loader_version=loader_version,
+            cf_manifest_files=cf_manifest_files,
+            modlist_entries=cf_modlist_entries,
+            override_mods=cf_override_mods
+        )
+        return StreamingResponse(
+            io.BytesIO(cf_bytes),
+            media_type="application/zip",
+            headers={"Content-Disposition": f"attachment; filename={safe_pack_name}-curseforge.zip"}
+        )
+
+    # Direct Modrinth Modpack Export (.mrpack)
+    if export_target == "modrinth":
+        mr_bytes = build_modrinth_mrpack_bytes(
+            pack_name=pack_name,
+            mc_version=mc_version,
+            loader=loader,
+            loader_version=loader_version,
+            mr_index_files=mr_index_files,
+            override_mods=mr_override_mods
+        )
+        return StreamingResponse(
+            io.BytesIO(mr_bytes),
+            media_type="application/x-modrinth-modpack+zip",
+            headers={"Content-Disposition": f"attachment; filename={safe_pack_name}.mrpack"}
+        )
+
+    out_buffer = io.BytesIO()
     with zipfile.ZipFile(out_buffer, 'w', zipfile.ZIP_DEFLATED) as out_zip:
         if export_target == "dual":
-            # 1. Client Folder
+            # 1. Ready-to-upload CurseForge Modpack Archive
+            cf_bytes = build_curseforge_pack_bytes(
+                pack_name=pack_name,
+                mc_version=mc_version,
+                loader=loader,
+                loader_version=loader_version,
+                cf_manifest_files=cf_manifest_files,
+                modlist_entries=cf_modlist_entries,
+                override_mods=cf_override_mods
+            )
+            out_zip.writestr(f"curseforge/{safe_pack_name}-curseforge.zip", cf_bytes)
+
+            # 2. Ready-to-upload Modrinth .mrpack Archive
+            mr_bytes = build_modrinth_mrpack_bytes(
+                pack_name=pack_name,
+                mc_version=mc_version,
+                loader=loader,
+                loader_version=loader_version,
+                mr_index_files=mr_index_files,
+                override_mods=mr_override_mods
+            )
+            out_zip.writestr(f"modrinth/{safe_pack_name}.mrpack", mr_bytes)
+
+            # 3. Unpacked Client Folder (for direct manual copy)
             for fname, fbytes, _ in client_mods:
                 out_zip.writestr(f"client/mods/{fname}", fbytes)
-            
+
             client_readme = f"""==================================================
-  {pack_name} - CLIENT MODPACK (MC {mc_version} {loader.upper()})
+  {pack_name} - CLIENT MODPACK (MC {mc_version} {loader.upper()} {loader_version})
 ==================================================
 This folder is for PLAYERS to install in their launcher.
 
-HOW TO INSTALL:
-1. Open Prism Launcher / Modrinth App / CurseForge / ATLauncher or official Minecraft.
-2. Create or open an instance for Minecraft {mc_version} ({loader.upper()}).
-3. Copy all files from 'client/mods/' into your instance's 'mods/' directory.
-4. Launch and connect to your dedicated server!
+OPTION A - Import via Launcher (Recommended):
+- Use 'curseforge/{safe_pack_name}-curseforge.zip' in CurseForge App / Prism Launcher
+- Or use 'modrinth/{safe_pack_name}.mrpack' in Modrinth App / Prism Launcher
+
+OPTION B - Manual Mods Folder Copy:
+1. Create an instance for Minecraft {mc_version} ({loader.upper()} {loader_version}).
+2. Copy all files from 'client/mods/' into your instance's 'mods/' directory.
 
 Total Client Mods: {len(client_mods)}
 """
             out_zip.writestr("client/README.txt", client_readme)
 
-            # 2. Server Folder
+            # 4. Unpacked Dedicated Server Folder
             for fname, fbytes, _ in server_mods:
                 out_zip.writestr(f"server/mods/{fname}", fbytes)
 
@@ -190,9 +369,9 @@ Total Client Mods: {len(client_mods)}
                 out_zip.writestr(f"server/{sname}", scontent)
 
             server_readme = f"""==================================================
-  {pack_name} - DEDICATED SERVER (MC {mc_version} {loader.upper()})
+  {pack_name} - DEDICATED SERVER (MC {mc_version} {loader.upper()} {loader_version})
 ==================================================
-This folder is for HOSTING the dedicated multiplayer server.
+This folder is for HOSTING the dedicated multiplayer server (or uploading to CurseForge as an Additional Server Pack).
 
 HOW TO RUN:
 - Linux / Bare Metal:   chmod +x run.sh && ./run.sh
@@ -204,40 +383,63 @@ Total Server Mods: {len(server_mods)}
 """
             out_zip.writestr("server/README.txt", server_readme)
 
-            # 3. Root README
-            root_readme = f"""# {pack_name}
+            # 5. Root Upload & Installation Guide
+            root_readme = f"""# {pack_name} — Complete Distribution Bundle
 
-Minecraft: {mc_version} | Loader: {loader.upper()} | Generated by MC Server Converter
+Minecraft: `{mc_version}` | Loader: `{loader.upper()} ({loader_version})`
 
-This archive contains separated distributions for players and the server host:
+This bundle includes ready-to-upload packages for **CurseForge**, **Modrinth**, **Players**, and **Dedicated Servers**:
 
-📂 **`client/`** (For Players)
-Contains all gameplay mods and client enhancements. Copy `client/mods` into your Minecraft launcher instance.
+1. **Upload to CurseForge (`curseforge/{safe_pack_name}-curseforge.zip`)**:
+   - Contains root `manifest.json`, `modlist.html`, and `overrides/` strictly formatted to the CurseForge Modpack specification.
+   - Upload directly at `https://legacy.curseforge.com/minecraft/modpacks/create` or import directly into the CurseForge App.
 
-📂 **`server/`** (For Server Host)
-Contains the stripped server mods, `server.properties`, `eula.txt`, `run.sh` / `run.bat`, and Docker configuration. Client-only crash mods have been removed.
+2. **Upload to Modrinth (`modrinth/{safe_pack_name}.mrpack`)**:
+   - Contains root `modrinth.index.json` (formatVersion 1) with SHA-1/SHA-512 hashes and `overrides/`.
+   - Upload directly to Modrinth or import into Modrinth App / Prism Launcher.
+
+3. **Client Folder (`client/mods/`)**:
+   - Pre-downloaded `.jar` files for players who want to drag-and-drop directly into `.minecraft/mods/`.
+
+4. **Dedicated Server Folder (`server/`)**:
+   - Stripped of client-only mods, pre-configured with `server.properties`, `eula.txt`, `run.sh`, `run.bat`, and Docker support.
 
 ---
-Compatibility Report:
+Compatibility Status:
 {report.summary}
 """
             out_zip.writestr("README.md", root_readme)
-            filename = f"{pack_name.replace(' ', '_')}-dual-pack.zip"
+            filename = f"{safe_pack_name}-dual-pack.zip"
 
         elif export_target == "client":
-            # Client only
+            # Client pack with manifest.json + modlist.html + mods/ so it works everywhere
+            cf_loader_id = f"{loader.lower()}-{loader_version}"
+            manifest = {
+                "minecraft": {
+                    "version": mc_version,
+                    "modLoaders": [{"id": cf_loader_id, "primary": True}]
+                },
+                "manifestType": "minecraftModpack",
+                "manifestVersion": 1,
+                "name": pack_name,
+                "version": "1.0.0",
+                "author": "Protutech",
+                "files": cf_manifest_files,
+                "overrides": "overrides"
+            }
+            out_zip.writestr("manifest.json", json.dumps(manifest, indent=2))
             for fname, fbytes, _ in client_mods:
                 out_zip.writestr(f"mods/{fname}", fbytes)
-            
+                out_zip.writestr(f"overrides/mods/{fname}", fbytes)
+
             client_readme = f"""==================================================
-  {pack_name} - CLIENT MODPACK (MC {mc_version} {loader.upper()})
+  {pack_name} - CLIENT MODPACK (MC {mc_version} {loader.upper()} {loader_version})
 ==================================================
-Install this into your Prism Launcher, CurseForge, or Minecraft client instance.
-Copy 'mods/' into your Minecraft directory.
+Install this into CurseForge, Prism Launcher, Modrinth App, or copy 'mods/' into your Minecraft directory.
 Total Mods: {len(client_mods)}
 """
             out_zip.writestr("README.txt", client_readme)
-            filename = f"{pack_name.replace(' ', '_')}-client.zip"
+            filename = f"{safe_pack_name}-client.zip"
 
         else:  # server only
             for fname, fbytes, _ in server_mods:
@@ -254,7 +456,7 @@ Total Mods: {len(client_mods)}
             summary_txt = f"""CUSTOM SERVER MODPACK CREATED BY MC SERVER CONVERTER
 Pack Name:         {pack_name}
 Minecraft Version: {mc_version}
-Loader:            {loader.upper()}
+Loader:            {loader.upper()} ({loader_version})
 Allocated RAM:     {ram_gb} GB
 
 COMPATIBILITY STATUS:
@@ -266,7 +468,7 @@ INCLUDED SERVER MODS ({len(server_mods)}):
                 summary_txt += f" + {fname}\n"
 
             out_zip.writestr("PACK_INFO.txt", summary_txt)
-            filename = f"{pack_name.replace(' ', '_')}-server.zip"
+            filename = f"{safe_pack_name}-server-pack.zip"
 
     out_buffer.seek(0)
     return StreamingResponse(
@@ -452,18 +654,72 @@ async def api_convert_modpack(
             headers={"Content-Disposition": f"attachment; filename={out_filename}"}
         )
 
+    loader_version = analysis.loader_version or resolve_loader_version(analysis.loader, analysis.minecraft_version)
+    safe_pack_name = analysis.pack_name.replace(" ", "_")
+
+    # Helper to normalize source paths
+    def normalize_path(raw_name: str) -> str:
+        path = raw_name
+        if path.startswith("overrides/"):
+            path = path.replace("overrides/", "", 1)
+        elif path.startswith(".minecraft/"):
+            path = path.replace(".minecraft/", "", 1)
+        return path
+
+    # Prepare CurseForge & Modrinth client export data from the existing archive
+    cf_manifest_files = []
+    mr_index_files = []
+    if analysis.pack_type == "curseforge" and isinstance(analysis.raw_manifest, dict):
+        cf_manifest_files = analysis.raw_manifest.get("files", [])
+    elif analysis.pack_type == "modrinth" and isinstance(analysis.raw_manifest, dict):
+        mr_index_files = analysis.raw_manifest.get("files", [])
+
+    extra_overrides = {}
+    for item in src_zip.infolist():
+        if item.is_dir():
+            continue
+        if item.filename in ["manifest.json", "modlist.html", "modrinth.index.json"]:
+            continue
+        norm_p = normalize_path(item.filename)
+        if norm_p:
+            extra_overrides[norm_p] = src_zip.read(item.filename)
+
+    if export_target == "curseforge":
+        cf_bytes = build_curseforge_pack_bytes(
+            pack_name=analysis.pack_name,
+            mc_version=analysis.minecraft_version,
+            loader=analysis.loader,
+            loader_version=loader_version,
+            cf_manifest_files=cf_manifest_files,
+            modlist_entries=[{"title": m["name"], "author": "Mod Author", "page_url": "#"} for m in analysis.server_mods_kept + analysis.client_mods_removed],
+            override_mods=[],
+            extra_overrides=extra_overrides
+        )
+        return StreamingResponse(
+            io.BytesIO(cf_bytes),
+            media_type="application/zip",
+            headers={"Content-Disposition": f"attachment; filename={safe_pack_name}-curseforge.zip"}
+        )
+
+    if export_target == "modrinth":
+        mr_bytes = build_modrinth_mrpack_bytes(
+            pack_name=analysis.pack_name,
+            mc_version=analysis.minecraft_version,
+            loader=analysis.loader,
+            loader_version=loader_version,
+            mr_index_files=mr_index_files,
+            override_mods=[],
+            extra_overrides=extra_overrides
+        )
+        return StreamingResponse(
+            io.BytesIO(mr_bytes),
+            media_type="application/x-modrinth-modpack+zip",
+            headers={"Content-Disposition": f"attachment; filename={safe_pack_name}.mrpack"}
+        )
+
     # Build the package according to export_target ('dual', 'client', or 'server'):
     with zipfile.ZipFile(out_buffer, 'w', zipfile.ZIP_DEFLATED) as out_zip:
         removed_filenames = {m["filename"] for m in analysis.client_mods_removed}
-
-        # Helper to normalize source paths
-        def normalize_path(raw_name: str) -> str:
-            path = raw_name
-            if path.startswith("overrides/"):
-                path = path.replace("overrides/", "", 1)
-            elif path.startswith(".minecraft/"):
-                path = path.replace(".minecraft/", "", 1)
-            return path
 
         props_content = generate_server_properties(analysis.pack_name, port=port)
         scripts = generate_run_scripts(analysis.loader, analysis.minecraft_version, memory_gb=ram_gb)
@@ -473,7 +729,7 @@ async def api_convert_modpack(
 ==================================================
 Modpack Name:      {analysis.pack_name}
 Minecraft Version: {analysis.minecraft_version}
-Loader:            {analysis.loader.upper()} ({analysis.loader_version or 'Latest'})
+Loader:            {analysis.loader.upper()} ({loader_version})
 Allocated RAM:     {ram_gb} GB (With Aikar's G1GC Flags)
 
 STRIPPED CLIENT-ONLY MODS ({len(analysis.client_mods_removed)}):
@@ -517,7 +773,31 @@ HOW TO RUN DEDICATED SERVER:
                 pass
 
         if export_target == "dual":
-            # --- 1. Client Folder ---
+            # --- 1. Ready-to-upload CurseForge & Modrinth packages ---
+            cf_bytes = build_curseforge_pack_bytes(
+                pack_name=analysis.pack_name,
+                mc_version=analysis.minecraft_version,
+                loader=analysis.loader,
+                loader_version=loader_version,
+                cf_manifest_files=cf_manifest_files,
+                modlist_entries=[{"title": m["name"], "author": "Mod Author", "page_url": "#"} for m in analysis.server_mods_kept + analysis.client_mods_removed],
+                override_mods=[],
+                extra_overrides=extra_overrides
+            )
+            out_zip.writestr(f"curseforge/{safe_pack_name}-curseforge.zip", cf_bytes)
+
+            mr_bytes = build_modrinth_mrpack_bytes(
+                pack_name=analysis.pack_name,
+                mc_version=analysis.minecraft_version,
+                loader=analysis.loader,
+                loader_version=loader_version,
+                mr_index_files=mr_index_files,
+                override_mods=[],
+                extra_overrides=extra_overrides
+            )
+            out_zip.writestr(f"modrinth/{safe_pack_name}.mrpack", mr_bytes)
+
+            # --- 2. Unpacked Client Folder ---
             for item in src_zip.infolist():
                 if item.is_dir():
                     continue
@@ -526,14 +806,15 @@ HOW TO RUN DEDICATED SERVER:
                     out_zip.writestr(f"client/{target_path}", src_zip.read(item.filename))
 
             client_readme = f"""{analysis.pack_name} - Client Modpack
-Minecraft: {analysis.minecraft_version} | Loader: {analysis.loader.upper()}
+Minecraft: {analysis.minecraft_version} | Loader: {analysis.loader.upper()} ({loader_version})
 
 This folder is for PLAYERS to install in their launcher.
-Copy 'client/mods' (and configs/resourcepacks) into your Minecraft client directory.
+Copy 'client/mods' (and configs/resourcepacks) into your Minecraft client directory,
+or import 'curseforge/{safe_pack_name}-curseforge.zip' or 'modrinth/{safe_pack_name}.mrpack' directly into your launcher.
 """
             out_zip.writestr("client/README.txt", client_readme)
 
-            # --- 2. Server Folder ---
+            # --- 3. Unpacked Server Folder ---
             for item in src_zip.infolist():
                 if item.is_dir():
                     continue
@@ -554,21 +835,20 @@ Copy 'client/mods' (and configs/resourcepacks) into your Minecraft client direct
                 out_zip.writestr(f"server/{sname}", scontent)
             out_zip.writestr("server/CONVERSION_REPORT.txt", conversion_report)
 
-            # --- 3. Root README ---
-            root_readme = f"""# {analysis.pack_name} (Dual Distribution)
+            # --- 4. Root README ---
+            root_readme = f"""# {analysis.pack_name} (Complete Distribution Bundle)
 
-Minecraft: {analysis.minecraft_version} | Loader: {analysis.loader.upper()}
+Minecraft: `{analysis.minecraft_version}` | Loader: `{analysis.loader.upper()} ({loader_version})`
 
-This archive contains separated distributions for both players and the dedicated server:
+This archive contains separated distributions for CurseForge, Modrinth, players, and the dedicated server:
 
-📁 **`client/`** (For Players)
-Contains all gameplay mods, shaders, HUDs, and client configurations. Give this to players to put in their launcher.
-
-📁 **`server/`** (For Dedicated Server)
-Contains stripped server mods with client-crashing mods removed, injected performance mods, `server.properties`, `eula.txt`, `run.sh` / `run.bat`, and Docker files.
+1. **`curseforge/{safe_pack_name}-curseforge.zip`**: Ready to upload to CurseForge or import into CurseForge App.
+2. **`modrinth/{safe_pack_name}.mrpack`**: Ready to upload to Modrinth or import into Modrinth App / Prism Launcher.
+3. **`client/`** (For Players): Unpacked client mods, shaders, HUDs, and client configurations.
+4. **`server/`** (For Dedicated Server): Stripped server mods with client-crashing mods removed, injected performance mods, `server.properties`, `eula.txt`, `run.sh` / `run.bat`, and Docker files.
 """
             out_zip.writestr("README.md", root_readme)
-            out_filename = f"{analysis.pack_name.replace(' ', '_')}-dual-pack.zip"
+            out_filename = f"{safe_pack_name}-dual-pack.zip"
 
         elif export_target == "client":
             # Client Only
@@ -580,11 +860,11 @@ Contains stripped server mods with client-crashing mods removed, injected perfor
                     out_zip.writestr(target_path, src_zip.read(item.filename))
 
             client_readme = f"""{analysis.pack_name} - Client Modpack
-Minecraft: {analysis.minecraft_version} | Loader: {analysis.loader.upper()}
+Minecraft: {analysis.minecraft_version} | Loader: {analysis.loader.upper()} ({loader_version})
 Copy this directory into your Minecraft launcher instance.
 """
             out_zip.writestr("README.txt", client_readme)
-            out_filename = f"{analysis.pack_name.replace(' ', '_')}-client-pack.zip"
+            out_filename = f"{safe_pack_name}-client-pack.zip"
 
         else:
             # Server Only (Default)
@@ -607,7 +887,7 @@ Copy this directory into your Minecraft launcher instance.
             for sname, scontent in scripts.items():
                 out_zip.writestr(sname, scontent)
             out_zip.writestr("CONVERSION_REPORT.txt", conversion_report)
-            out_filename = f"{analysis.pack_name.replace(' ', '_')}-server-pack.zip"
+            out_filename = f"{safe_pack_name}-server-pack.zip"
 
     out_buffer.seek(0)
     return StreamingResponse(
@@ -619,3 +899,4 @@ Copy this directory into your Minecraft launcher instance.
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app:app", host="0.0.0.0", port=8080, reload=True)
+

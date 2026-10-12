@@ -479,18 +479,21 @@
 
                         <div class="mt-4 pt-3 border-top border-secondary d-flex flex-wrap justify-content-between align-items-center gap-3">
                             <div>
-                                <div class="text-light fw-bold small"><i class="bi bi-box-seam me-1 text-brand"></i>Export Target Package:</div>
-                                <div class="text-secondary small">Generate client modpack, server modpack, or dual package with separate folders.</div>
+                                <div class="text-light fw-bold small"><i class="bi bi-box-seam me-1 text-brand"></i>Export & Upload Target Package:</div>
+                                <div class="text-secondary small">Export natively for CurseForge upload (<code>manifest.json</code>), Modrinth upload (<code>.mrpack</code>), dedicated server, or complete dual bundle.</div>
                             </div>
                             <div class="d-flex flex-wrap gap-2">
-                                <button class="btn btn-outline-info btn-sm fw-bold" onclick="buildCustomPack('client')" title="Download player distribution for launcher">
-                                    <i class="bi bi-display me-1"></i> Client Only (.ZIP)
+                                <button class="btn btn-outline-danger btn-sm fw-bold" onclick="buildCustomPack('curseforge')" title="Ready to upload directly to CurseForge or import into CurseForge App (manifest.json + modlist.html + overrides/)">
+                                    <i class="bi bi-fire me-1"></i> CurseForge (.ZIP)
                                 </button>
-                                <button class="btn btn-outline-warning btn-sm fw-bold" onclick="buildCustomPack('server')" title="Download stripped dedicated server distribution">
+                                <button class="btn btn-outline-success btn-sm fw-bold" onclick="buildCustomPack('modrinth')" title="Ready to upload directly to Modrinth or import into Modrinth App / Prism Launcher (.mrpack)">
+                                    <i class="bi bi-box-arrow-up me-1"></i> Modrinth (.mrpack)
+                                </button>
+                                <button class="btn btn-outline-warning btn-sm fw-bold" onclick="buildCustomPack('server')" title="Download stripped dedicated server distribution (also uploadable as CurseForge Server Pack)">
                                     <i class="bi bi-hdd-network me-1"></i> Server Only (.ZIP)
                                 </button>
-                                <button class="btn btn-brand px-3 fw-bold" onclick="buildCustomPack('dual')" title="Contains separate client/ and server/ folders">
-                                    <i class="bi bi-folder-symlink-fill me-1"></i> Dual Pack (Client & Server)
+                                <button class="btn btn-brand px-3 fw-bold" onclick="buildCustomPack('dual')" title="Contains CurseForge .zip, Modrinth .mrpack, and separate client/ and server/ folders">
+                                    <i class="bi bi-folder-symlink-fill me-1"></i> Dual Pack (Client + Server + CF/MR)
                                 </button>
                             </div>
                         </div>
@@ -671,7 +674,7 @@
                 <!-- Action Button Footer -->
                 <div class="mt-4 pt-3 border-top border-secondary d-flex flex-wrap justify-content-between align-items-center gap-3">
                     <div class="text-secondary small">
-                        Choose package format: Dual Pack (separate client & server folders), dedicated server, or client modpack.
+                        Export as a CurseForge pack (<code>manifest.json</code>), Modrinth pack (<code>.mrpack</code>), dedicated server, or Dual Bundle.
                     </div>
                     <div class="d-flex flex-wrap gap-2">
                         <button class="btn btn-outline-warning btn-sm" onclick="showDiscoTransferModal()" title="Export directly to DiscoPanel LXC">
@@ -680,13 +683,16 @@
                         <button class="btn btn-outline-secondary btn-sm" id="download-additional-btn" onclick="generatePack(true)">
                             <i class="bi bi-file-earmark-zip me-1"></i> Add-on Mods
                         </button>
-                        <button class="btn btn-outline-info btn-sm" onclick="generatePack(false, 'client')" title="Client modpack for player launcher">
-                            <i class="bi bi-display me-1"></i> Client Pack (.ZIP)
+                        <button class="btn btn-outline-danger btn-sm fw-bold" onclick="generatePack(false, 'curseforge')" title="CurseForge uploadable modpack (.zip with manifest.json + modlist.html + overrides/)">
+                            <i class="bi bi-fire me-1"></i> CurseForge (.ZIP)
                         </button>
-                        <button class="btn btn-brand btn-sm px-3 fw-bold" id="build-server-btn" onclick="generatePack(false, 'dual')" title="Contains separate client/ and server/ folders">
-                            <i class="bi bi-folder-symlink-fill me-1"></i> Dual Pack (Client & Server)
+                        <button class="btn btn-outline-info btn-sm fw-bold" onclick="generatePack(false, 'modrinth')" title="Modrinth uploadable modpack (.mrpack with modrinth.index.json + overrides/)">
+                            <i class="bi bi-box-arrow-up me-1"></i> Modrinth (.mrpack)
                         </button>
-                        <button class="btn btn-outline-success btn-sm" onclick="generatePack(false, 'server')" title="Stripped dedicated server package">
+                        <button class="btn btn-brand btn-sm px-3 fw-bold" id="build-server-btn" onclick="generatePack(false, 'dual')" title="Contains CurseForge .zip, Modrinth .mrpack, and separate client/ and server/ folders">
+                            <i class="bi bi-folder-symlink-fill me-1"></i> Dual Pack (Client + Server)
+                        </button>
+                        <button class="btn btn-outline-success btn-sm fw-bold" onclick="generatePack(false, 'server')" title="Stripped dedicated server package">
                             <i class="bi bi-hdd-network me-1"></i> Server Only (.ZIP)
                         </button>
                     </div>
@@ -1115,12 +1121,17 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            let suffix = 'server-pack';
-            if (additionalOnly) suffix = 'server-addons';
-            else if (target === 'dual') suffix = 'dual-pack';
-            else if (target === 'client') suffix = 'client-pack';
             const baseName = (currentAnalysis ? currentAnalysis.pack_name : 'modpack').replace(/\s+/g, '_');
-            a.download = `${baseName}-${suffix}.zip`;
+            if (target === 'modrinth') {
+                a.download = `${baseName}.mrpack`;
+            } else {
+                let suffix = 'server-pack';
+                if (additionalOnly) suffix = 'server-addons';
+                else if (target === 'dual') suffix = 'dual-pack';
+                else if (target === 'curseforge') suffix = 'curseforge';
+                else if (target === 'client') suffix = 'client-pack';
+                a.download = `${baseName}-${suffix}.zip`;
+            }
             document.body.appendChild(a);
             a.click();
             a.remove();
@@ -1147,6 +1158,7 @@
 
     // --- Custom Modpack Creator & Compatibility Testing Logic ---
     let builderMods = [];
+    let selectedBuilderMods = new Map(); // Persistent Map of modId -> mod metadata object
     let builderOffset = 0;
     let builderIsLoading = false;
 
@@ -1175,7 +1187,38 @@
         const mcVer = document.getElementById('builder-mc-version').value;
         const badge = document.getElementById('compatible-version-badge');
         if (badge) badge.innerText = `${mcVer} ${loader.toUpperCase()}`;
+        selectedBuilderMods.clear();
         loadBuilderCatalog(false);
+    }
+
+    function onModCheckboxToggle(cb) {
+        const modId = cb.value;
+        if (cb.checked) {
+            const found = builderMods.find(m => String(m.id || m.slug) === String(modId));
+            if (found) {
+                selectedBuilderMods.set(String(modId), {
+                    id: String(found.id || found.slug),
+                    slug: String(found.slug || found.id),
+                    provider: found.provider || 'modrinth',
+                    title: found.title || found.slug,
+                    author: found.author || 'Author',
+                    page_url: found.page_url || '',
+                    side: found.side || 'both'
+                });
+            } else {
+                selectedBuilderMods.set(String(modId), {
+                    id: String(modId),
+                    slug: String(modId),
+                    provider: /^\d+$/.test(String(modId)) ? 'curseforge' : 'modrinth',
+                    title: String(modId),
+                    author: 'Author',
+                    page_url: ''
+                });
+            }
+        } else {
+            selectedBuilderMods.delete(String(modId));
+        }
+        runCompatibilityTest();
     }
 
     function renderModCard(mod) {
@@ -1185,7 +1228,8 @@
         const downloadsText = formatDownloads(mod.downloads);
         const safeTitle = (mod.title || 'Unknown Mod').replace(/"/g, '&quot;');
         const safeDesc = (mod.description || 'Verified compatible with this Minecraft version.').replace(/"/g, '&quot;');
-        const modId = mod.id || mod.slug;
+        const modId = String(mod.id || mod.slug);
+        const isChecked = selectedBuilderMods.has(modId) ? 'checked' : '';
 
         // Side classification badge
         let sideBadge = '<span class="badge bg-secondary" style="font-size: 0.65rem;" title="Runs on both client and server"><i class="bi bi-check2-all me-1"></i>Both</span>';
@@ -1199,7 +1243,7 @@
             <div class="col-md-6 col-lg-4">
                 <div class="card card-elevated p-3 h-100 d-flex flex-column">
                     <div class="d-flex align-items-start gap-3">
-                        <input class="form-check-input mt-1 builder-checkbox flex-shrink-0" type="checkbox" value="${modId}" id="builder-mod-${modId}" onchange="runCompatibilityTest()">
+                        <input class="form-check-input mt-1 builder-checkbox flex-shrink-0" type="checkbox" value="${modId}" id="builder-mod-${modId}" ${isChecked} onchange="onModCheckboxToggle(this)">
                         <img src="${icon}" class="rounded flex-shrink-0" style="width: 48px; height: 48px; object-fit: cover; background: #121212;" onerror="this.src='https://via.placeholder.com/48/121a2d/ffffff?text=Mod'">
                         <div class="flex-grow-1 overflow-hidden">
                             <div class="d-flex align-items-center justify-content-between mb-1 gap-1">
@@ -1280,7 +1324,7 @@
             });
 
             if (countBadge) {
-                countBadge.innerText = `${builderMods.length} mods loaded`;
+                countBadge.innerText = `${builderMods.length} mods loaded (${selectedBuilderMods.size} selected)`;
             }
 
             if (loadMoreBtn) {
@@ -1317,10 +1361,15 @@
     }
 
     function runCompatibilityTest() {
-        const selected = [];
-        document.querySelectorAll('.builder-checkbox:checked').forEach(cb => {
-            selected.push({ project_id: cb.value, id: cb.value });
-        });
+        const selected = Array.from(selectedBuilderMods.values()).map(m => ({
+            project_id: m.slug || m.id,
+            id: m.slug || m.id
+        }));
+
+        const countBadge = document.getElementById('builder-results-count-badge');
+        if (countBadge && builderMods.length > 0) {
+            countBadge.innerText = `${builderMods.length} mods loaded (${selectedBuilderMods.size} selected)`;
+        }
 
         const loader = document.getElementById('builder-loader').value;
         const mcVer = document.getElementById('builder-mc-version').value;
@@ -1339,7 +1388,7 @@
             details.innerHTML = '';
 
             if (res.passed && res.warnings.length === 0) {
-                statusText.innerHTML = `<span class="text-brand fw-bold"><i class="bi bi-check-circle-fill me-1"></i>All Clear:</span> ${selected.length} mods tested with 0 conflicts. 100% server compatible.`;
+                statusText.innerHTML = `<span class="text-brand fw-bold"><i class="bi bi-check-circle-fill me-1"></i>All Clear:</span> ${selected.length} mods tested with 0 conflicts. Ready for CurseForge, Modrinth & Server.`;
             } else if (res.passed && res.warnings.length > 0) {
                 statusText.innerHTML = `<span class="text-warning fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i>Passed with Notes:</span> Compatible, but check notifications below.`;
                 res.warnings.forEach(w => {
@@ -1355,8 +1404,7 @@
     }
 
     function buildCustomPack(target = 'dual') {
-        const selected = [];
-        document.querySelectorAll('.builder-checkbox:checked').forEach(cb => selected.push(cb.value));
+        const selected = Array.from(selectedBuilderMods.values());
         if (selected.length === 0) {
             alert("Please select at least one mod for your pack.");
             return;
@@ -1365,6 +1413,7 @@
         const name = document.getElementById('builder-pack-name').value.trim() || 'Custom Modpack';
         const loader = document.getElementById('builder-loader').value;
         const mcVer = document.getElementById('builder-mc-version').value;
+        const cfKey = localStorage.getItem('cf_api_key') || '';
 
         const formData = new FormData();
         formData.append("pack_name", name);
@@ -1374,8 +1423,16 @@
         formData.append("export_target", target);
         formData.append("ram_gb", "6");
         formData.append("port", "25565");
+        formData.append("cf_key", cfKey);
 
-        const targetLabel = target === 'dual' ? 'Dual Pack' : (target === 'client' ? 'Client Pack' : 'Server Pack');
+        const labelMap = {
+            dual: 'Dual Pack (Client + Server + CF/MR)',
+            curseforge: 'CurseForge Pack (.ZIP)',
+            modrinth: 'Modrinth Pack (.mrpack)',
+            server: 'Server Pack (.ZIP)',
+            client: 'Client Pack (.ZIP)'
+        };
+        const targetLabel = labelMap[target] || 'Modpack';
         const countBadge = document.getElementById('builder-results-count-badge');
         if (countBadge) countBadge.innerText = `Packaging ${targetLabel}...`;
 
@@ -1388,16 +1445,27 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            const suffix = target === 'dual' ? 'dual-pack' : (target === 'client' ? 'client-pack' : 'server-pack');
-            a.download = `${name.replace(/\s+/g, '_')}-${suffix}.zip`;
+            const safeName = name.replace(/\s+/g, '_');
+            if (target === 'modrinth') {
+                a.download = `${safeName}.mrpack`;
+            } else {
+                const suffixMap = {
+                    dual: 'dual-pack',
+                    curseforge: 'curseforge',
+                    server: 'server-pack',
+                    client: 'client-pack'
+                };
+                const suffix = suffixMap[target] || 'pack';
+                a.download = `${safeName}-${suffix}.zip`;
+            }
             document.body.appendChild(a);
             a.click();
             a.remove();
-            if (countBadge) countBadge.innerText = `${builderMods.length} mods loaded`;
+            if (countBadge) countBadge.innerText = `${builderMods.length} mods loaded (${selectedBuilderMods.size} selected)`;
         })
         .catch(err => {
             alert("Error creating pack: " + err);
-            if (countBadge) countBadge.innerText = `${builderMods.length} mods loaded`;
+            if (countBadge) countBadge.innerText = `${builderMods.length} mods loaded (${selectedBuilderMods.size} selected)`;
         });
     }
 

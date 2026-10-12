@@ -418,12 +418,15 @@
                     <div class="text-secondary small">
                         Full package includes server.properties, eula.txt, run.sh (Aikar flags), and Docker files.
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-outline-warning" onclick="showDiscoTransferModal()">
+                            <i class="bi bi-send-check-fill me-1"></i> Send to DiscoPanel
+                        </button>
                         <button class="btn btn-outline-info" id="download-additional-btn" onclick="generatePack(true)">
-                            <i class="bi bi-file-earmark-zip me-1"></i> Download Add-on Mods ZIP Only
+                            <i class="bi bi-file-earmark-zip me-1"></i> Add-on Mods (.ZIP)
                         </button>
                         <button class="btn btn-brand px-4 fw-bold" id="build-server-btn" onclick="generatePack(false)">
-                            <i class="bi bi-box-seam me-1"></i> Generate Full Server Pack (.ZIP)
+                            <i class="bi bi-box-seam me-1"></i> Download Server (.ZIP)
                         </button>
                     </div>
                 </div>
@@ -451,8 +454,41 @@
     </div>
 </div>
 
-<!-- Settings Modal for CurseForge API Key -->
-<div class="modal fade" id="settingsModal" tabindex="-1">
+<!-- DiscoPanel Transfer Helper Modal -->
+<div class="modal fade" id="discoTransferModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content card-elevated text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-send-fill text-warning me-2"></i>Transfer to DiscoPanel</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-light">
+                    To immediately import this converted server into your DiscoPanel machine (<strong class="text-brand">192.168.0.119</strong>), you can run this single command on your DiscoPanel terminal:
+                </p>
+
+                <div class="bg-black p-3 rounded-3 border border-secondary mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-secondary small fw-bold">RUN ON ROOT@DISCOPANEL:</span>
+                        <button class="btn btn-sm btn-outline-light" onclick="copyDiscoImportCmd()">
+                            <i class="bi bi-clipboard" id="disco-copy-icon"></i> Copy
+                        </button>
+                    </div>
+                    <code class="text-brand small user-select-all" id="disco-import-cmd">curl -fsSL https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/discopanel-import.sh | bash -s -- /tmp/server.zip</code>
+                </div>
+
+                <div class="card p-3 border-secondary mb-2">
+                    <h6 class="fw-bold text-light mb-2"><i class="bi bi-info-circle text-info me-1"></i>What this does automatically:</h6>
+                    <ul class="mb-0 text-secondary small ps-3">
+                        <li>Creates a fresh server instance directory in <code>/opt/discopanel/data/servers/</code></li>
+                        <li>Unpacks all stripped server mods and configurations</li>
+                        <li>Sets file permissions and restarts the DiscoPanel daemon to index the new server</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
     <div class="modal-dialog">
         <div class="modal-content card-elevated text-light">
             <div class="modal-header border-secondary">
@@ -806,6 +842,19 @@
             btn.innerHTML = originalText;
             btn.disabled = false;
         });
+    }
+
+    function showDiscoTransferModal() {
+        const modal = new bootstrap.Modal(document.getElementById('discoTransferModal'));
+        modal.show();
+    }
+
+    function copyDiscoImportCmd() {
+        const text = document.getElementById('disco-import-cmd').innerText;
+        navigator.clipboard.writeText(text);
+        const icon = document.getElementById('disco-copy-icon');
+        icon.className = 'bi bi-check2';
+        setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 2000);
     }
 
     function copyProxmoxCmd() {

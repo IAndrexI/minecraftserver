@@ -39,6 +39,30 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 async def serve_index(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
 
+@app.post("/api/export-to-discopanel")
+async def api_export_to_discopanel(
+    pack_name: str = Form("Converted Server"),
+    download_url: str = Form(None),
+    server_dir: str = Form("/opt/discopanel/data/servers")
+):
+    """Auto-imports converted server files directly to DiscoPanel data directory if accessible."""
+    import uuid
+    import shutil
+
+    if not os.path.exists(server_dir):
+        raise HTTPException(status_code=400, detail=f"DiscoPanel directory not found at {server_dir}. Ensure DiscoPanel is installed on the host or mount its directory.")
+
+    server_uuid = str(uuid.uuid4())
+    target_path = os.path.join(server_dir, server_uuid)
+    os.makedirs(target_path, exist_ok=True)
+
+    if download_url:
+        r = requests.get(download_url, timeout=60)
+        if r.status_code == 200:
+            with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+                z.extractall(target_path)
+            return {"status": "success", "server_id": server_uuid, "path": target_path}
+
 @app.get("/api/search")
 async def api_search_modpacks(
     q: str = Query("", min_length=0),

@@ -95,11 +95,45 @@ def inspect_jar_metadata(jar_data: bytes, filename: str) -> Tuple[str, str, str]
     norm_id = mod_id.lower().replace("-", "").replace("_", "")
     for known in KNOWN_CLIENT_MODS:
         known_norm = known.replace("-", "").replace("_", "")
-        if known_norm in norm_id or norm_id in known_norm:
+        if known_norm in norm_id:
             environment = "client"
             break
 
     return mod_id, name, environment
+
+KNOWN_SERVER_ONLY_MODS = {
+    "ledger", "spark", "chunky", "chunkyborder", "chunky-border",
+    "servux", "luckperms", "audioplayer", "simple-voice-chat-server",
+    "bungeeguard", "velocity", "floodgate", "geyser", "geyser-fabric",
+    "geyser-spigot", "packetfixer", "vmp", "krypton", "carpet",
+    "essential-commands", "server-tap", "bluemap", "dynmap"
+}
+
+def classify_mod_side(filename: str, jar_data: Optional[bytes] = None) -> str:
+    """
+    Classifies a mod as 'client', 'server', or 'both'.
+    """
+    norm = sanitize_id(os.path.splitext(filename)[0]).lower().replace("-", "").replace("_", "")
+    
+    # 1. Check known server-only mods
+    for s in KNOWN_SERVER_ONLY_MODS:
+        s_norm = s.replace("-", "").replace("_", "")
+        if s_norm in norm:
+            return "server"
+
+    # 2. Check known client-only mods
+    for c in KNOWN_CLIENT_MODS:
+        c_norm = c.replace("-", "").replace("_", "")
+        if c_norm in norm:
+            return "client"
+
+    # 3. If jar_data is provided, inspect internal metadata
+    if jar_data:
+        _, _, env = inspect_jar_metadata(jar_data, filename)
+        if env in ["client", "server"]:
+            return env
+
+    return "both"
 
 def query_modrinth_version(project_slug: str, mc_version: str, loader: str) -> Optional[Dict[str, str]]:
     """Fetches compatible file download for a server-side mod from Modrinth API."""

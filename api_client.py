@@ -8,6 +8,7 @@ import json
 import logging
 import requests
 from typing import Dict, List, Optional, Any
+from converter_engine import classify_mod_side
 
 logger = logging.getLogger("mc-api-client")
 
@@ -278,9 +279,10 @@ def search_version_mods(
             if res.status_code == 200:
                 hits = res.json().get("hits", [])
                 for h in hits:
+                    slug_val = h.get("slug") or ""
                     results.append({
                         "id": h.get("project_id"),
-                        "slug": h.get("slug"),
+                        "slug": slug_val,
                         "title": h.get("title"),
                         "description": h.get("description"),
                         "icon_url": h.get("icon_url"),
@@ -288,7 +290,8 @@ def search_version_mods(
                         "downloads": h.get("downloads", 0),
                         "categories": h.get("categories", []),
                         "provider": "modrinth",
-                        "page_url": f"https://modrinth.com/mod/{h.get('slug')}"
+                        "side": classify_mod_side(slug_val),
+                        "page_url": f"https://modrinth.com/mod/{slug_val}"
                     })
         except Exception as e:
             logger.warning(f"Error fetching version mods from Modrinth: {e}")
@@ -334,16 +337,18 @@ def search_version_mods(
                     for d in data:
                         logo = d.get("logo", {}) or {}
                         authors = [a.get("name") for a in d.get("authors", [])]
+                        slug_val = d.get("slug") or ""
                         results.append({
                             "id": str(d.get("id")),
-                            "slug": d.get("slug"),
+                            "slug": slug_val,
                             "title": d.get("name"),
                             "description": d.get("summary"),
                             "icon_url": logo.get("thumbnailUrl") or logo.get("url"),
                             "author": ", ".join(authors) if authors else "Unknown",
                             "downloads": d.get("downloadCount", 0),
                             "provider": "curseforge",
-                            "page_url": d.get("links", {}).get("websiteUrl") or f"https://www.curseforge.com/minecraft/mc-mods/{d.get('slug')}"
+                            "side": classify_mod_side(slug_val),
+                            "page_url": d.get("links", {}).get("websiteUrl") or f"https://www.curseforge.com/minecraft/mc-mods/{slug_val}"
                         })
             except Exception as e:
                 logger.warning(f"Error fetching version mods from CurseForge: {e}")

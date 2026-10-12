@@ -477,13 +477,22 @@
                             </button>
                         </div>
 
-                        <div class="mt-4 pt-3 border-top border-secondary d-flex justify-content-between align-items-center">
-                            <div class="text-secondary small">
-                                Verified compatible server bundle ready for immediate boot or DiscoPanel export.
+                        <div class="mt-4 pt-3 border-top border-secondary d-flex flex-wrap justify-content-between align-items-center gap-3">
+                            <div>
+                                <div class="text-light fw-bold small"><i class="bi bi-box-seam me-1 text-brand"></i>Export Target Package:</div>
+                                <div class="text-secondary small">Generate client modpack, server modpack, or dual package with separate folders.</div>
                             </div>
-                            <button class="btn btn-brand px-4 fw-bold" onclick="buildCustomPack()">
-                                <i class="bi bi-box-seam me-1"></i> Build & Download Modpack (.ZIP)
-                            </button>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button class="btn btn-outline-info btn-sm fw-bold" onclick="buildCustomPack('client')" title="Download player distribution for launcher">
+                                    <i class="bi bi-display me-1"></i> Client Only (.ZIP)
+                                </button>
+                                <button class="btn btn-outline-warning btn-sm fw-bold" onclick="buildCustomPack('server')" title="Download stripped dedicated server distribution">
+                                    <i class="bi bi-hdd-network me-1"></i> Server Only (.ZIP)
+                                </button>
+                                <button class="btn btn-brand px-3 fw-bold" onclick="buildCustomPack('dual')" title="Contains separate client/ and server/ folders">
+                                    <i class="bi bi-folder-symlink-fill me-1"></i> Dual Pack (Client & Server)
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -662,17 +671,23 @@
                 <!-- Action Button Footer -->
                 <div class="mt-4 pt-3 border-top border-secondary d-flex flex-wrap justify-content-between align-items-center gap-3">
                     <div class="text-secondary small">
-                        Full package includes server.properties, eula.txt, run.sh (Aikar flags), and Docker files.
+                        Choose package format: Dual Pack (separate client & server folders), dedicated server, or client modpack.
                     </div>
                     <div class="d-flex flex-wrap gap-2">
-                        <button class="btn btn-outline-warning" onclick="showDiscoTransferModal()">
-                            <i class="bi bi-send-check-fill me-1"></i> Send to DiscoPanel
+                        <button class="btn btn-outline-warning btn-sm" onclick="showDiscoTransferModal()" title="Export directly to DiscoPanel LXC">
+                            <i class="bi bi-send-check-fill me-1"></i> DiscoPanel
                         </button>
-                        <button class="btn btn-outline-info" id="download-additional-btn" onclick="generatePack(true)">
-                            <i class="bi bi-file-earmark-zip me-1"></i> Add-on Mods (.ZIP)
+                        <button class="btn btn-outline-secondary btn-sm" id="download-additional-btn" onclick="generatePack(true)">
+                            <i class="bi bi-file-earmark-zip me-1"></i> Add-on Mods
                         </button>
-                        <button class="btn btn-brand px-4 fw-bold" id="build-server-btn" onclick="generatePack(false)">
-                            <i class="bi bi-box-seam me-1"></i> Download Server (.ZIP)
+                        <button class="btn btn-outline-info btn-sm" onclick="generatePack(false, 'client')" title="Client modpack for player launcher">
+                            <i class="bi bi-display me-1"></i> Client Pack (.ZIP)
+                        </button>
+                        <button class="btn btn-brand btn-sm px-3 fw-bold" id="build-server-btn" onclick="generatePack(false, 'dual')" title="Contains separate client/ and server/ folders">
+                            <i class="bi bi-folder-symlink-fill me-1"></i> Dual Pack (Client & Server)
+                        </button>
+                        <button class="btn btn-outline-success btn-sm" onclick="generatePack(false, 'server')" title="Stripped dedicated server package">
+                            <i class="bi bi-hdd-network me-1"></i> Server Only (.ZIP)
                         </button>
                     </div>
                 </div>
@@ -1058,7 +1073,7 @@
         fetchCatalog();
     }
 
-    function generatePack(additionalOnly = false) {
+    function generatePack(additionalOnly = false, target = 'server') {
         if (!uploadedFile && !remoteDownloadUrl) return;
 
         const selectedMods = [];
@@ -1079,6 +1094,7 @@
         }
 
         formData.append("selected_mods", JSON.stringify(selectedMods));
+        formData.append("export_target", target);
         formData.append("ram_gb", ram);
         formData.append("port", port);
         formData.append("view_distance", viewDist);
@@ -1087,7 +1103,7 @@
 
         const btn = additionalOnly ? document.getElementById('download-additional-btn') : document.getElementById('build-server-btn');
         const originalText = btn.innerHTML;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Packaging Server...';
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Packaging...';
         btn.disabled = true;
 
         fetch('/api/convert', { method: 'POST', body: formData })
@@ -1099,7 +1115,12 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = additionalOnly ? `${currentAnalysis.pack_name}-server-addons.zip` : `${currentAnalysis.pack_name}-server-pack.zip`;
+            let suffix = 'server-pack';
+            if (additionalOnly) suffix = 'server-addons';
+            else if (target === 'dual') suffix = 'dual-pack';
+            else if (target === 'client') suffix = 'client-pack';
+            const baseName = (currentAnalysis ? currentAnalysis.pack_name : 'modpack').replace(/\s+/g, '_');
+            a.download = `${baseName}-${suffix}.zip`;
             document.body.appendChild(a);
             a.click();
             a.remove();
@@ -1166,6 +1187,14 @@
         const safeDesc = (mod.description || 'Verified compatible with this Minecraft version.').replace(/"/g, '&quot;');
         const modId = mod.id || mod.slug;
 
+        // Side classification badge
+        let sideBadge = '<span class="badge bg-secondary" style="font-size: 0.65rem;" title="Runs on both client and server"><i class="bi bi-check2-all me-1"></i>Both</span>';
+        if (mod.side === 'client') {
+            sideBadge = '<span class="badge bg-info text-dark" style="font-size: 0.65rem;" title="Client-only (placed into client/ folder)"><i class="bi bi-display me-1"></i>Client</span>';
+        } else if (mod.side === 'server') {
+            sideBadge = '<span class="badge bg-warning text-dark" style="font-size: 0.65rem;" title="Server-only (placed into server/ folder)"><i class="bi bi-hdd-network me-1"></i>Server</span>';
+        }
+
         return `
             <div class="col-md-6 col-lg-4">
                 <div class="card card-elevated p-3 h-100 d-flex flex-column">
@@ -1173,11 +1202,14 @@
                         <input class="form-check-input mt-1 builder-checkbox flex-shrink-0" type="checkbox" value="${modId}" id="builder-mod-${modId}" onchange="runCompatibilityTest()">
                         <img src="${icon}" class="rounded flex-shrink-0" style="width: 48px; height: 48px; object-fit: cover; background: #121212;" onerror="this.src='https://via.placeholder.com/48/121a2d/ffffff?text=Mod'">
                         <div class="flex-grow-1 overflow-hidden">
-                            <div class="d-flex align-items-center justify-content-between mb-1">
-                                <label class="form-check-label fw-bold text-light text-truncate mb-0" style="max-width: 140px; font-size: 0.95rem; cursor: pointer;" for="builder-mod-${modId}" title="${safeTitle}">
+                            <div class="d-flex align-items-center justify-content-between mb-1 gap-1">
+                                <label class="form-check-label fw-bold text-light text-truncate mb-0" style="max-width: 130px; font-size: 0.95rem; cursor: pointer;" for="builder-mod-${modId}" title="${safeTitle}">
                                     ${safeTitle}
                                 </label>
-                                <span class="badge ${badgeColor}" style="font-size: 0.7rem;">${providerLabel}</span>
+                                <div class="d-flex gap-1 flex-shrink-0">
+                                    ${sideBadge}
+                                    <span class="badge ${badgeColor}" style="font-size: 0.65rem;">${providerLabel}</span>
+                                </div>
                             </div>
                             <div class="text-secondary small" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.8rem; line-height: 1.35;">
                                 ${safeDesc}
@@ -1322,15 +1354,15 @@
         });
     }
 
-    function buildCustomPack() {
+    function buildCustomPack(target = 'dual') {
         const selected = [];
         document.querySelectorAll('.builder-checkbox:checked').forEach(cb => selected.push(cb.value));
         if (selected.length === 0) {
-            alert("Please select at least one mod for your server pack.");
+            alert("Please select at least one mod for your pack.");
             return;
         }
 
-        const name = document.getElementById('builder-pack-name').value.trim() || 'Custom Server';
+        const name = document.getElementById('builder-pack-name').value.trim() || 'Custom Modpack';
         const loader = document.getElementById('builder-loader').value;
         const mcVer = document.getElementById('builder-mc-version').value;
 
@@ -1339,8 +1371,13 @@
         formData.append("loader", loader);
         formData.append("mc_version", mcVer);
         formData.append("selected_mods_json", JSON.stringify(selected));
+        formData.append("export_target", target);
         formData.append("ram_gb", "6");
         formData.append("port", "25565");
+
+        const targetLabel = target === 'dual' ? 'Dual Pack' : (target === 'client' ? 'Client Pack' : 'Server Pack');
+        const countBadge = document.getElementById('builder-results-count-badge');
+        if (countBadge) countBadge.innerText = `Packaging ${targetLabel}...`;
 
         fetch('/api/create-custom-pack', { method: 'POST', body: formData })
         .then(response => {
@@ -1351,12 +1388,17 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${name.replace(/\s+/g, '_')}-server.zip`;
+            const suffix = target === 'dual' ? 'dual-pack' : (target === 'client' ? 'client-pack' : 'server-pack');
+            a.download = `${name.replace(/\s+/g, '_')}-${suffix}.zip`;
             document.body.appendChild(a);
             a.click();
             a.remove();
+            if (countBadge) countBadge.innerText = `${builderMods.length} mods loaded`;
         })
-        .catch(err => alert("Error creating pack: " + err));
+        .catch(err => {
+            alert("Error creating pack: " + err);
+            if (countBadge) countBadge.innerText = `${builderMods.length} mods loaded`;
+        });
     }
 
     function copyProxmoxCmd() {

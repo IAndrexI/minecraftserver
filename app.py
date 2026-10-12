@@ -39,6 +39,104 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 async def serve_index(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
 
+from compatibility_tester import test_mod_compatibility
+from converter_catalog import EXPANDED_SERVER_MODS_CATALOG
+
+@app.post("/api/test-compatibility")
+async def api_test_compatibility(
+    mods_json: str = Form("[]"),
+    loader: str = Form("fabric"),
+    mc_version: str = Form("1.20.1")
+):
+    """Simulates a server boot test and evaluates mutual mod compatibility & conflicts."""
+    import json
+    try:
+        mods_list = json.loads(mods_json)
+    except Exception:
+        mods_list = []
+
+    report = test_mod_compatibility(mods_list, loader=loader, mc_version=mc_version)
+    return {
+        "passed": report.passed,
+        "simulated_load_success": report.simulated_load_success,
+        "summary": report.summary,
+        "conflicts": report.conflicts_found,
+        "warnings": report.warnings,
+        "errors": report.errors,
+        "client_only_detected": report.client_only_detected
+    }
+
+@app.get("/api/catalog-mods")
+async def api_get_catalog_mods(loader: str = "fabric"):
+    """Returns the full catalog of performance, utility, and administration mods."""
+    mods = EXPANDED_SERVER_MODS_CATALOG.get(loader.lower(), EXPANDED_SERVER_MODS_CATALOG.get("fabric", []))
+    return {"loader": loader, "mods": mods}
+
+@app.post("/api/create-custom-pack")
+async def api_create_custom_pack(
+    pack_name: str = Form("Custom Server Pack"),
+    loader: str = Form("fabric"),
+    mc_version: str = Form("1.20.1"),
+    selected_mods_json: str = Form("[]"),
+    ram_gb: int = Form(6),
+    port: int = Form(25565)
+):
+    """Builds a brand new custom server pack from selected mods from scratch."""
+    import json
+    import requests
+    slugs = json.loads(selected_mods_json)
+    out_buffer = io.BytesIO()
+
+    # Pre-test compatibility
+    test_mods = [{"project_id": s} for s in slugs]
+    report = test_mod_compatibility(test_mods, loader=loader, mc_version=mc_version)
+
+    downloaded = []
+    for slug in slugs:
+        file_info = query_modrinth_version(slug, mc_version, loader)
+        if file_info:
+            try:
+                r = requests.get(file_info["url"], timeout=10)
+                if r.status_code == 200:
+                    downloaded.append((file_info["filename"], r.content))
+            except Exception:
+                pass
+
+    with zipfile.ZipFile(out_buffer, 'w', zipfile.ZIP_DEFLATED) as out_zip:
+        for fname, fbytes in downloaded:
+            out_zip.writestr(f"mods/{fname}", fbytes)
+
+        props = generate_server_properties(pack_name, port=port)
+        out_zip.writestr("server.properties", props)
+        out_zip.writestr("eula.txt", "eula=true\n")
+
+        scripts = generate_run_scripts(loader, mc_version, memory_gb=ram_gb)
+        for sname, scontent in scripts.items():
+            out_zip.writestr(sname, scontent)
+
+        summary_txt = f"""CUSTOM SERVER MODPACK CREATED BY MC SERVER CONVERTER
+Pack Name:         {pack_name}
+Minecraft Version: {mc_version}
+Loader:            {loader.upper()}
+Allocated RAM:     {ram_gb} GB
+
+COMPATIBILITY STATUS:
+{report.summary}
+
+INCLUDED SERVER MODS ({len(downloaded)}):
+"""
+        for fname, _ in downloaded:
+            summary_txt += f" + {fname}\n"
+
+        out_zip.writestr("PACK_INFO.txt", summary_txt)
+
+    out_buffer.seek(0)
+    filename = f"{pack_name.replace(' ', '_')}-server.zip"
+    return StreamingResponse(
+        out_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 @app.post("/api/export-to-discopanel")
 async def api_export_to_discopanel(
     pack_name: str = Form("Converted Server"),
@@ -62,6 +160,8 @@ async def api_export_to_discopanel(
             with zipfile.ZipFile(io.BytesIO(r.content)) as z:
                 z.extractall(target_path)
             return {"status": "success", "server_id": server_uuid, "path": target_path}
+
+    return {"status": "error", "detail": "Missing modpack content"}
 
 @app.get("/api/search")
 async def api_search_modpacks(

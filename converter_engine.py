@@ -191,11 +191,13 @@ def analyze_modpack(file_bytes: bytes, original_filename: str) -> Tuple[ModpackA
                     "filename": filename
                 })
 
-    # Available performance mods for this loader
-    perf_catalog = SERVER_PERFORMANCE_CATALOG.get(analysis.loader, SERVER_PERFORMANCE_CATALOG.get("fabric", {}))
+    # Available performance and utility mods for this loader
+    from converter_catalog import EXPANDED_SERVER_MODS_CATALOG
+    perf_catalog = EXPANDED_SERVER_MODS_CATALOG.get(analysis.loader, EXPANDED_SERVER_MODS_CATALOG.get("fabric", []))
     existing_mod_ids = {m["id"].lower() for m in analysis.server_mods_kept}
 
-    for mod_key, mod_info in perf_catalog.items():
+    for mod_info in perf_catalog:
+        mod_key = mod_info["mod_id"].lower()
         is_already_present = any(mod_key in m_id for m_id in existing_mod_ids)
         analysis.recommended_performance_mods.append({
             **mod_info,

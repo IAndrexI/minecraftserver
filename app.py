@@ -30,7 +30,7 @@ if os.path.exists(os.path.join(BASE_DIR, "static")):
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 @app.post("/api/analyze")
 async def api_analyze_modpack(file: UploadFile = File(...)):

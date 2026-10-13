@@ -601,13 +601,16 @@
                                 <div class="text-secondary small">Export natively for CurseForge upload (<code>manifest.json</code>), Modrinth upload (<code>.mrpack</code>), dedicated server, or complete dual bundle.</div>
                             </div>
                             <div class="d-flex flex-wrap gap-2">
+                                <button class="btn btn-outline-warning btn-sm fw-bold" onclick="showDiscoTransferModal('builder')" title="Generate 1-line command to directly create this custom server in DiscoPanel">
+                                    <i class="bi bi-hdd-rack-fill me-1"></i> Create in DiscoPanel
+                                </button>
                                 <button class="btn btn-outline-danger btn-sm fw-bold" onclick="buildCustomPack('curseforge')" title="Ready to upload directly to CurseForge or import into CurseForge App (manifest.json + modlist.html + overrides/)">
                                     <i class="bi bi-fire me-1"></i> CurseForge (.ZIP)
                                 </button>
                                 <button class="btn btn-outline-success btn-sm fw-bold" onclick="buildCustomPack('modrinth')" title="Ready to upload directly to Modrinth or import into Modrinth App / Prism Launcher (.mrpack)">
                                     <i class="bi bi-box-arrow-up me-1"></i> Modrinth (.mrpack)
                                 </button>
-                                <button class="btn btn-outline-warning btn-sm fw-bold" onclick="buildCustomPack('server')" title="Download stripped dedicated server distribution (also uploadable as CurseForge Server Pack)">
+                                <button class="btn btn-outline-info btn-sm fw-bold" onclick="buildCustomPack('server')" title="Download stripped dedicated server distribution (also uploadable as CurseForge Server Pack)">
                                     <i class="bi bi-hdd-network me-1"></i> Server Only (.ZIP)
                                 </button>
                                 <button class="btn btn-brand px-3 fw-bold" onclick="buildCustomPack('dual')" title="Contains CurseForge .zip, Modrinth .mrpack, and separate client/ and server/ folders">
@@ -655,6 +658,9 @@
                                 <a href="http://192.168.0.119:8080" target="_blank" rel="noopener" class="btn btn-outline-warning btn-sm fw-bold">
                                     <i class="bi bi-hdd-rack-fill me-1"></i> DiscoPanel (192.168.0.119)
                                 </a>
+                                <button type="button" class="btn btn-outline-warning btn-sm fw-bold" onclick="showDiscoTransferModal('direct')">
+                                    <i class="bi bi-terminal-plus me-1"></i> Direct Create Server Command
+                                </button>
                                 <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener" class="btn btn-outline-info btn-sm fw-bold">
                                     <i class="bi bi-cloud-check-fill me-1"></i> Cloudflare DNS
                                 </a>
@@ -720,20 +726,24 @@
                                             Open DiscoPanel <i class="bi bi-box-arrow-up-right ms-1"></i>
                                         </a>
                                     </div>
-                                    <h6 class="fw-bold text-light">Prepare DiscoPanel & Port Forwarding</h6>
-                                    <ol class="text-secondary small ps-3 mb-2">
-                                        <li class="mb-1">Find your Public WAN IP on your DiscoPanel terminal (or click <strong>Detect</strong> above):</li>
-                                    </ol>
+                                    <h6 class="fw-bold text-light">Create Server in DiscoPanel & Port Forward</h6>
+                                    <div class="text-secondary small mb-1">1. Directly create & register a server on <code>root@discopanel</code>:</div>
+                                    <div class="bg-black p-2 rounded border border-secondary d-flex justify-content-between align-items-center mb-2">
+                                        <code class="text-brand small user-select-all" id="cmd-step1-disco-create">curl -fsSL https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/discopanel-import.sh | bash -s -- --create "Minecraft Server" "fabric" "1.20.1" 6 25565</code>
+                                        <button class="btn btn-sm btn-outline-light py-0 px-2 ms-2" onclick="copyTextById('cmd-step1-disco-create', this)">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                    <div class="text-secondary small mb-1">2. Check your Public WAN IP on <code>root@discopanel</code> (or click <strong>Detect</strong> above):</div>
                                     <div class="bg-black p-2 rounded border border-secondary d-flex justify-content-between align-items-center mb-2">
                                         <code class="text-brand small user-select-all" id="cmd-wan-ip">curl -4 ifconfig.me</code>
                                         <button class="btn btn-sm btn-outline-light py-0 px-2" onclick="copyTextById('cmd-wan-ip', this)">
                                             <i class="bi bi-clipboard"></i>
                                         </button>
                                     </div>
-                                    <ol class="text-secondary small ps-3 mb-0" start="2">
-                                        <li class="mb-1">In <a href="http://192.168.0.119:8080" target="_blank" class="text-info">DiscoPanel</a>, verify <code>server.properties</code> has <code>server-port=<span class="tcp-port-val">25565</span></code>, <code>server-ip=</code> (empty), and <code>prevent-proxy-connections=false</code>.</li>
-                                        <li>On your router, forward <strong>TCP Port <span class="tcp-port-val">25565</span></strong> &rarr; <code>192.168.0.119:<span class="tcp-port-val">25565</span></code>.</li>
-                                    </ol>
+                                    <div class="text-secondary small mb-0">
+                                        3. Forward <strong>TCP Port <span class="tcp-port-val">25565</span></strong> on your router &rarr; <code>192.168.0.119:<span class="tcp-port-val">25565</span></code>.
+                                    </div>
                                 </div>
                             </div>
 
@@ -996,8 +1006,8 @@
                         Export as a CurseForge pack (<code>manifest.json</code>), Modrinth pack (<code>.mrpack</code>), dedicated server, or Dual Bundle.
                     </div>
                     <div class="d-flex flex-wrap gap-2">
-                        <button class="btn btn-outline-warning btn-sm" onclick="showDiscoTransferModal()" title="Export directly to DiscoPanel LXC">
-                            <i class="bi bi-send-check-fill me-1"></i> DiscoPanel
+                        <button class="btn btn-outline-warning btn-sm fw-bold" onclick="showDiscoTransferModal('convert')" title="Directly create and import this server into DiscoPanel">
+                            <i class="bi bi-hdd-rack-fill me-1"></i> Create in DiscoPanel
                         </button>
                         <button class="btn btn-outline-secondary btn-sm" id="download-additional-btn" onclick="generatePack(true)">
                             <i class="bi bi-file-earmark-zip me-1"></i> Add-on Mods
@@ -1040,35 +1050,90 @@
     </div>
 </div>
 
-<!-- DiscoPanel Transfer Helper Modal -->
+<!-- DiscoPanel Direct Server Creation & Auto-Import Modal -->
 <div class="modal fade" id="discoTransferModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content card-elevated text-light">
             <div class="modal-header border-secondary">
-                <h5 class="modal-title"><i class="bi bi-send-fill text-warning me-2"></i>Transfer to DiscoPanel</h5>
+                <h5 class="modal-title"><i class="bi bi-hdd-rack-fill text-warning me-2"></i>Direct Server Creation in DiscoPanel (192.168.0.119)</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p class="text-light">
-                    To immediately import this converted server into your DiscoPanel machine (<strong class="text-brand">192.168.0.119</strong>), you can run this single command on your DiscoPanel terminal:
-                </p>
+                <!-- Server Parameters Row -->
+                <div class="card p-3 border-secondary mb-3" style="background-color: var(--bg-code);">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small fw-bold text-light"><i class="bi bi-sliders me-1 text-brand"></i>Server Instance Parameters</span>
+                        <span id="disco-stage-badge" class="badge badge-brand">Ready</span>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label small text-secondary mb-1">Server Name</label>
+                            <input type="text" id="disco-srv-name" class="form-control form-control-sm" value="Minecraft Server" oninput="updateDiscoModalCommands()">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-secondary mb-1">Mod Loader</label>
+                            <select id="disco-srv-loader" class="form-select form-select-sm" onchange="updateDiscoModalCommands()">
+                                <option value="fabric" selected>Fabric</option>
+                                <option value="forge">Forge</option>
+                                <option value="neoforge">NeoForge</option>
+                                <option value="quilt">Quilt</option>
+                                <option value="vanilla">Vanilla</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-secondary mb-1">MC Version</label>
+                            <input type="text" id="disco-srv-mcver" class="form-control form-control-sm" value="1.20.1" oninput="updateDiscoModalCommands()">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-secondary mb-1">RAM (GB)</label>
+                            <input type="number" id="disco-srv-ram" class="form-control form-control-sm" value="6" min="2" max="64" oninput="updateDiscoModalCommands()">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-secondary mb-1">Port</label>
+                            <input type="number" id="disco-srv-port" class="form-control form-control-sm" value="25565" oninput="updateDiscoModalCommands()">
+                        </div>
+                    </div>
+                </div>
 
-                <div class="bg-black p-3 rounded-3 border border-secondary mb-3">
+                <!-- Option 1: Full Modpack Server Auto-Download + Direct Create -->
+                <div id="disco-staged-section" class="mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="text-secondary small fw-bold">RUN ON ROOT@DISCOPANEL:</span>
-                        <button class="btn btn-sm btn-outline-light" onclick="copyDiscoImportCmd()">
-                            <i class="bi bi-clipboard" id="disco-copy-icon"></i> Copy
+                        <span class="small fw-bold text-light">
+                            <i class="bi bi-cloud-arrow-down-fill text-brand me-1"></i>Option 1: Create Server With Converted Mods & Configs (Run on <code>root@discopanel</code>)
+                        </span>
+                        <button class="btn btn-sm btn-outline-light py-0 px-2" onclick="copyTextById('disco-import-cmd', this)">
+                            <i class="bi bi-clipboard me-1"></i>Copy
                         </button>
                     </div>
-                    <code class="text-brand small user-select-all" id="disco-import-cmd">curl -fsSL https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/discopanel-import.sh | bash -s -- /tmp/server.zip</code>
+                    <div class="bg-black p-3 rounded-3 border border-secondary">
+                        <code class="text-brand small user-select-all" id="disco-import-cmd">curl -fsSL https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/discopanel-import.sh | bash -s -- --create "Minecraft Server" "fabric" "1.20.1" 6 25565</code>
+                    </div>
+                    <div class="small text-secondary mt-1">
+                        Pulls the packaged server directly from this converter over LAN, extracts all mods &amp; configs, starts the Docker container, and registers the server in <code>discopanel.db</code>.
+                    </div>
+                </div>
+
+                <!-- Option 2: Standalone Direct Server Creation (No Zip Needed) -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small fw-bold text-light">
+                            <i class="bi bi-lightning-charge-fill text-warning me-1"></i>Option 2: Direct Standalone Server Creation Command (No .zip required)
+                        </span>
+                        <button class="btn btn-sm btn-outline-light py-0 px-2" onclick="copyTextById('disco-direct-create-cmd', this)">
+                            <i class="bi bi-clipboard me-1"></i>Copy
+                        </button>
+                    </div>
+                    <div class="bg-black p-3 rounded-3 border border-secondary">
+                        <code class="text-brand small user-select-all" id="disco-direct-create-cmd">curl -fsSL https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/discopanel-import.sh | bash -s -- --create "Minecraft Server" "fabric" "1.20.1" 6 25565</code>
+                    </div>
                 </div>
 
                 <div class="card p-3 border-secondary mb-3">
-                    <h6 class="fw-bold text-light mb-2"><i class="bi bi-info-circle text-info me-1"></i>What this does automatically:</h6>
+                    <h6 class="fw-bold text-light mb-2"><i class="bi bi-check2-circle text-brand me-1"></i>What this command does directly inside DiscoPanel:</h6>
                     <ul class="mb-0 text-secondary small ps-3">
-                        <li>Creates a fresh server instance directory in <code>/opt/discopanel/data/servers/</code></li>
-                        <li>Unpacks all stripped server mods and configurations</li>
-                        <li>Sets file permissions and restarts the DiscoPanel daemon to index the new server</li>
+                        <li>Creates the server directory in <code>/opt/discopanel/data/servers/&lt;name&gt;_&lt;uuid&gt;</code> with <code>eula=true</code> and RCON enabled</li>
+                        <li>Starts the <code>itzg/minecraft-server</code> Docker container with DiscoPanel labels (<code>discopanel.managed=true</code>) and Java 21/17/8 auto-selection</li>
+                        <li>Registers the server, configuration, and all <code>.jar</code> mods directly inside <code>/opt/discopanel/data/discopanel.db</code> so it appears immediately in the DiscoPanel Web UI</li>
                     </ul>
                 </div>
 
@@ -1447,17 +1512,138 @@
         });
     }
 
-    function showDiscoTransferModal() {
-        const modal = new bootstrap.Modal(document.getElementById('discoTransferModal'));
-        modal.show();
+    let currentStagedDiscoUrl = null;
+
+    function updateDiscoModalCommands() {
+        const srvName = (document.getElementById('disco-srv-name').value || 'Minecraft Server').replace(/"/g, '');
+        const loader = (document.getElementById('disco-srv-loader').value || 'fabric').toLowerCase();
+        const mcVer = (document.getElementById('disco-srv-mcver').value || '1.20.1').trim();
+        const ram = (document.getElementById('disco-srv-ram').value || '6').trim();
+        const port = (document.getElementById('disco-srv-port').value || '25565').trim();
+
+        const scriptUrl = 'https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/discopanel-import.sh';
+        const directCreateCmd = `curl -fsSL ${scriptUrl} | bash -s -- --create "${srvName}" "${loader}" "${mcVer}" ${ram} ${port}`;
+
+        const directEl = document.getElementById('disco-direct-create-cmd');
+        if (directEl) directEl.innerText = directCreateCmd;
+
+        const importEl = document.getElementById('disco-import-cmd');
+        if (importEl) {
+            if (currentStagedDiscoUrl) {
+                importEl.innerText = `curl -fsSL ${scriptUrl} | bash -s -- "${currentStagedDiscoUrl}" "${srvName}" ${ram} ${port} "${loader}" "${mcVer}"`;
+            } else {
+                importEl.innerText = directCreateCmd;
+            }
+        }
     }
 
-    function copyDiscoImportCmd() {
-        const text = document.getElementById('disco-import-cmd').innerText;
-        navigator.clipboard.writeText(text);
-        const icon = document.getElementById('disco-copy-icon');
-        icon.className = 'bi bi-check2';
-        setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 2000);
+    function showDiscoTransferModal(source = 'convert') {
+        currentStagedDiscoUrl = null;
+        const badge = document.getElementById('disco-stage-badge');
+        const stagedSection = document.getElementById('disco-staged-section');
+
+        if (source === 'convert' && currentAnalysis) {
+            document.getElementById('disco-srv-name').value = currentAnalysis.pack_name || 'Converted Server';
+            document.getElementById('disco-srv-loader').value = (currentAnalysis.loader || 'fabric').toLowerCase();
+            document.getElementById('disco-srv-mcver').value = currentAnalysis.minecraft_version || '1.20.1';
+            document.getElementById('disco-srv-ram').value = document.getElementById('server-ram') ? document.getElementById('server-ram').value : '6';
+            document.getElementById('disco-srv-port').value = document.getElementById('server-port') ? document.getElementById('server-port').value : '25565';
+        } else if (source === 'builder') {
+            document.getElementById('disco-srv-name').value = (document.getElementById('builder-pack-name') && document.getElementById('builder-pack-name').value.trim()) || 'Custom Modpack Server';
+            document.getElementById('disco-srv-loader').value = (document.getElementById('builder-loader') && document.getElementById('builder-loader').value) || 'fabric';
+            document.getElementById('disco-srv-mcver').value = (document.getElementById('builder-mc-version') && document.getElementById('builder-mc-version').value) || '1.20.1';
+            document.getElementById('disco-srv-ram').value = '6';
+            document.getElementById('disco-srv-port').value = '25565';
+        }
+
+        updateDiscoModalCommands();
+
+        const modal = new bootstrap.Modal(document.getElementById('discoTransferModal'));
+        modal.show();
+
+        // Automatically stage the converted or custom pack on the converter backend so root@discopanel can pull it in 1 command
+        if (source === 'convert' && (uploadedFile || remoteDownloadUrl)) {
+            if (stagedSection) stagedSection.classList.remove('d-none');
+            if (badge) {
+                badge.className = 'badge bg-warning text-dark';
+                badge.innerHTML = '<span class="spinner-border spinner-border-sm me-1" style="width:0.7rem;height:0.7rem;"></span>Staging Server Pack...';
+            }
+            const selectedMods = [];
+            document.querySelectorAll('.mod-checkbox:checked').forEach(cb => selectedMods.push(cb.value));
+
+            const formData = new FormData();
+            if (uploadedFile) formData.append("file", uploadedFile);
+            if (remoteDownloadUrl) formData.append("download_url", remoteDownloadUrl);
+            const worldInput = document.getElementById('world-upload-input');
+            if (worldInput && worldInput.files.length > 0) {
+                formData.append("world_file", worldInput.files[0]);
+            }
+            formData.append("selected_mods", JSON.stringify(selectedMods));
+            formData.append("export_target", "server");
+            formData.append("ram_gb", document.getElementById('disco-srv-ram').value);
+            formData.append("port", document.getElementById('disco-srv-port').value);
+            formData.append("stage_for_discopanel", "true");
+
+            fetch('/api/convert', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.download_path) {
+                    currentStagedDiscoUrl = window.location.origin + data.download_path;
+                    updateDiscoModalCommands();
+                    if (badge) {
+                        badge.className = 'badge badge-brand';
+                        badge.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Pack Staged & Ready';
+                    }
+                }
+            })
+            .catch(() => {
+                if (badge) {
+                    badge.className = 'badge bg-secondary';
+                    badge.innerText = 'Direct Mode';
+                }
+            });
+        } else if (source === 'builder' && selectedBuilderMods.size > 0) {
+            if (stagedSection) stagedSection.classList.remove('d-none');
+            if (badge) {
+                badge.className = 'badge bg-warning text-dark';
+                badge.innerHTML = '<span class="spinner-border spinner-border-sm me-1" style="width:0.7rem;height:0.7rem;"></span>Staging Custom Pack...';
+            }
+            const selected = Array.from(selectedBuilderMods.values());
+            const formData = new FormData();
+            formData.append("pack_name", document.getElementById('disco-srv-name').value);
+            formData.append("loader", document.getElementById('disco-srv-loader').value);
+            formData.append("mc_version", document.getElementById('disco-srv-mcver').value);
+            formData.append("selected_mods_json", JSON.stringify(selected));
+            formData.append("export_target", "server");
+            formData.append("ram_gb", document.getElementById('disco-srv-ram').value);
+            formData.append("port", document.getElementById('disco-srv-port').value);
+            formData.append("stage_for_discopanel", "true");
+
+            fetch('/api/create-custom-pack', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.download_path) {
+                    currentStagedDiscoUrl = window.location.origin + data.download_path;
+                    updateDiscoModalCommands();
+                    if (badge) {
+                        badge.className = 'badge badge-brand';
+                        badge.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Custom Pack Staged';
+                    }
+                }
+            })
+            .catch(() => {
+                if (badge) {
+                    badge.className = 'badge bg-secondary';
+                    badge.innerText = 'Direct Mode';
+                }
+            });
+        } else {
+            if (stagedSection) stagedSection.classList.add('d-none');
+            if (badge) {
+                badge.className = 'badge badge-brand';
+                badge.innerText = 'Direct Create Ready';
+            }
+        }
     }
 
     // --- Custom Modpack Creator & Compatibility Testing Logic ---
@@ -1845,6 +2031,11 @@
         const ufwEl = document.getElementById('cmd-ufw-lockdown');
         if (ufwEl) {
             ufwEl.innerText = `for ip in $(curl -fsSL https://tcpshield.com/v4/); do ufw allow proto tcp from "$ip" to any port ${port} comment 'TCPShield'; done && ufw allow proto tcp from 192.168.0.0/24 to any port ${port} comment 'Local LAN'`;
+        }
+
+        const step1DiscoEl = document.getElementById('cmd-step1-disco-create');
+        if (step1DiscoEl) {
+            step1DiscoEl.innerText = `curl -fsSL https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/discopanel-import.sh | bash -s -- --create "Minecraft Server" "fabric" "1.20.1" 6 ${port}`;
         }
     }
 

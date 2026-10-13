@@ -6,11 +6,13 @@ side analysis, and server bundle generation.
 import os
 import io
 import json
+import uuid
+import tempfile
 import zipfile
 import requests
 import hashlib
 from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException, Query
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -18,7 +20,7 @@ from converter_engine import (
     analyze_modpack,
     generate_server_properties,
     generate_run_scripts,
-     resolve_loader_version,
+    resolve_loader_version,
     query_modrinth_version,
     query_curseforge_mod_file,
     build_curseforge_pack_bytes,
@@ -38,6 +40,8 @@ from api_client import (
 app = FastAPI(title="Minecraft Server Modpack Converter")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DISCO_STAGE_DIR = os.path.join(tempfile.gettempdir(), "discopanel_staged")
+os.makedirs(DISCO_STAGE_DIR, exist_ok=True)
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 if os.path.exists(os.path.join(BASE_DIR, "static")):
@@ -129,6 +133,7 @@ async def api_create_custom_pack(
     export_target: str = Form("dual"),
     ram_gb: int = Form(6),
     port: int = Form(25565),
+    stage_for_discopanel: bool = Form(False),
     cf_key: str = Form(None)
 ):
     """
@@ -471,11 +476,37 @@ INCLUDED SERVER MODS ({len(server_mods)}):
             filename = f"{safe_pack_name}-server-pack.zip"
 
     out_buffer.seek(0)
+    if stage_for_discopanel:
+        package_id = str(uuid.uuid4())
+        staged_path = os.path.join(DISCO_STAGE_DIR, f"{package_id}.zip")
+        with open(staged_path, "wb") as f:
+            f.write(out_buffer.getvalue())
+        return {
+            "status": "staged",
+            "package_id": package_id,
+            "download_path": f"/api/disco-download/{package_id}.zip",
+            "pack_name": pack_name,
+            "loader": loader,
+            "mc_version": mc_version,
+            "ram_gb": ram_gb,
+            "port": port
+        }
+
     return StreamingResponse(
         out_buffer,
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+@app.get("/api/disco-download/{package_id}.zip")
+async def api_disco_download(package_id: str):
+    """Serves a staged server package directly to root@discopanel via curl."""
+    safe_id = os.path.basename(package_id)
+    staged_path = os.path.join(DISCO_STAGE_DIR, f"{safe_id}.zip")
+    if not os.path.exists(staged_path):
+        raise HTTPException(status_code=404, detail="Staged DiscoPanel package not found or expired")
+    return FileResponse(staged_path, media_type="application/zip", filename=f"{safe_id}.zip")
+
 @app.post("/api/export-to-discopanel")
 async def api_export_to_discopanel(
     pack_name: str = Form("Converted Server"),
@@ -597,7 +628,8 @@ async def api_convert_modpack(
     port: int = Form(25565),
     view_distance: int = Form(10),
     simulation_distance: int = Form(8),
-    additional_only: bool = Form(False)
+    additional_only: bool = Form(False),
+    stage_for_discopanel: bool = Form(False)
 ):
     if file:
         content = await file.read()
@@ -890,6 +922,22 @@ Copy this directory into your Minecraft launcher instance.
             out_filename = f"{safe_pack_name}-server-pack.zip"
 
     out_buffer.seek(0)
+    if stage_for_discopanel:
+        package_id = str(uuid.uuid4())
+        staged_path = os.path.join(DISCO_STAGE_DIR, f"{package_id}.zip")
+        with open(staged_path, "wb") as f:
+            f.write(out_buffer.getvalue())
+        return {
+            "status": "staged",
+            "package_id": package_id,
+            "download_path": f"/api/disco-download/{package_id}.zip",
+            "pack_name": analysis.pack_name,
+            "loader": analysis.loader,
+            "mc_version": analysis.minecraft_version,
+            "ram_gb": ram_gb,
+            "port": port
+        }
+
     return StreamingResponse(
         out_buffer,
         media_type="application/zip",

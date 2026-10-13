@@ -130,6 +130,11 @@
         .bg-black {
             background-color: var(--bg-code) !important;
         }
+        .alert-dark {
+            background-color: var(--bg-code) !important;
+            color: var(--text-primary) !important;
+            border-color: rgba(252, 211, 77, 0.35) !important;
+        }
         .bg-danger {
             background-color: #991b1b !important;
             color: #fecaca !important;
@@ -752,9 +757,9 @@
                                             <i class="bi bi-clipboard"></i>
                                         </button>
                                     </div>
-                                    <div class="alert alert-dark border-warning py-2 px-3 small text-light mb-0">
+                                    <div class="bg-black border border-warning rounded p-2 px-3 small text-light mb-0" style="background-color: var(--bg-code) !important;">
                                         <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
-                                        <strong>Proxy Protocol:</strong> Set to <span class="badge bg-success">Disabled</span> so all Fabric/Forge/NeoForge modpacks work immediately without extra plugins. (Only enable if you install <a href="https://github.com/TCPShield/RealIP/releases" target="_blank" class="text-info">TCPShield RealIP</a>).
+                                        <strong class="text-warning">Proxy Protocol:</strong> Set to <span class="badge bg-success text-white">Disabled</span> so all Fabric/Forge/NeoForge modpacks work immediately without extra plugins. (Only enable if you install <a href="https://github.com/TCPShield/RealIP/releases" target="_blank" class="text-info fw-semibold">TCPShield RealIP</a>).
                                     </div>
                                 </div>
                             </div>

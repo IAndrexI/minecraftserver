@@ -257,6 +257,9 @@
                 </ul>
             </div>
 
+            <button class="btn btn-outline-info btn-sm" onclick="openTcpShieldGuide()">
+                <i class="bi bi-shield-lock-fill me-1"></i> TCPShield & Domain Setup
+            </button>
             <button class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#settingsModal">
                 <i class="bi bi-key-fill me-1 text-warning"></i> API Settings
             </button>
@@ -284,7 +287,7 @@
                 </p>
             </div>
 
-            <!-- Main Input Tabs (Explore Grid vs Custom Builder vs Upload) -->
+            <!-- Main Input Tabs (Explore Grid vs Custom Builder vs Upload vs TCPShield) -->
             <div class="card p-4 shadow-lg mb-4" id="input-card">
                 <ul class="nav nav-tabs mb-4" id="inputTabs" role="tablist">
                     <li class="nav-item" role="presentation">
@@ -300,6 +303,11 @@
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="upload-tab-btn" data-bs-toggle="tab" data-bs-target="#upload-tab-pane" type="button">
                             <i class="bi bi-cloud-arrow-up me-2"></i>Upload Local Archive (.zip / .mrpack)
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tcpshield-tab-btn" data-bs-toggle="tab" data-bs-target="#tcpshield-tab-pane" type="button">
+                            <i class="bi bi-shield-lock-fill me-2 text-info"></i>TCPShield & Custom Domain (DiscoPanel)
                         </button>
                     </li>
                 </ul>
@@ -516,6 +524,207 @@
                             </div>
                             <div class="progress" style="height: 8px; background-color: var(--bg-elevated);">
                                 <div id="progress-bar" class="progress-bar bg-success progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TCPShield & Custom Domain (DiscoPanel) Tab -->
+                    <div class="tab-pane fade" id="tcpshield-tab-pane" role="tabpanel">
+                        <!-- Quick Direct Links Bar -->
+                        <div class="card card-elevated p-3 mb-4 border-secondary">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                <h6 class="fw-bold text-light mb-0">
+                                    <i class="bi bi-box-arrow-up-right text-brand me-2"></i>Direct Control Panel & Platform Links
+                                </h6>
+                                <span class="badge badge-brand">One-Click Dashboards</span>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                <a href="https://panel.tcpshield.com/" target="_blank" rel="noopener" class="btn btn-brand btn-sm fw-bold">
+                                    <i class="bi bi-shield-lock-fill me-1"></i> TCPShield Panel
+                                </a>
+                                <a href="http://192.168.0.119:8080" target="_blank" rel="noopener" class="btn btn-outline-warning btn-sm fw-bold">
+                                    <i class="bi bi-hdd-rack-fill me-1"></i> DiscoPanel (192.168.0.119)
+                                </a>
+                                <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener" class="btn btn-outline-info btn-sm fw-bold">
+                                    <i class="bi bi-cloud-check-fill me-1"></i> Cloudflare DNS
+                                </a>
+                                <a href="https://ap.www.namecheap.com/domains/list/" target="_blank" rel="noopener" class="btn btn-outline-light btn-sm">
+                                    <i class="bi bi-globe2 me-1"></i> Namecheap DNS
+                                </a>
+                                <a href="https://porkbun.com/account/domainsSpeedy" target="_blank" rel="noopener" class="btn btn-outline-light btn-sm">
+                                    <i class="bi bi-globe me-1"></i> Porkbun DNS
+                                </a>
+                                <a href="https://legacy.curseforge.com/minecraft/modpacks/create" target="_blank" rel="noopener" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-fire me-1"></i> Upload to CurseForge
+                                </a>
+                                <a href="https://modrinth.com/dashboard/projects" target="_blank" rel="noopener" class="btn btn-outline-success btn-sm">
+                                    <i class="bi bi-box-arrow-up me-1"></i> Upload to Modrinth
+                                </a>
+                                <a href="https://docs.tcpshield.com/" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-book me-1"></i> TCPShield Docs
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Interactive Custom Domain & IP Configurator -->
+                        <div class="card card-elevated p-3 mb-4 border-secondary">
+                            <h6 class="fw-bold text-light mb-2">
+                                <i class="bi bi-sliders2 text-warning me-2"></i>Interactive Domain & Backend Generator (Optional)
+                            </h6>
+                            <p class="text-secondary small mb-3">
+                                Enter your custom domain, Public WAN IP, and TCPShield CNAME below to automatically fill in the exact values in the steps below:
+                            </p>
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold text-light">Subdomain / Hostname</label>
+                                    <input type="text" id="tcp-subdomain-input" class="form-control form-control-sm" value="mc.yourdomain.com" oninput="updateTcpShieldPreview()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold text-light">Your Public WAN IP</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" id="tcp-wan-ip-input" class="form-control" placeholder="e.g. 203.0.113.50" oninput="updateTcpShieldPreview()">
+                                        <button class="btn btn-outline-info" type="button" onclick="detectPublicWanIp()" title="Auto-detect your public IP">
+                                            <i class="bi bi-crosshair"></i> Detect
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small fw-bold text-light">Server Port</label>
+                                    <input type="number" id="tcp-port-input" class="form-control form-control-sm" value="25565" oninput="updateTcpShieldPreview()">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold text-light">TCPShield Protected CNAME</label>
+                                    <input type="text" id="tcp-cname-input" class="form-control form-control-sm" placeholder="xxxx.tcpshield.net" oninput="updateTcpShieldPreview()">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step-by-Step Guide Cards -->
+                        <div class="row g-3">
+                            <!-- Step 1 -->
+                            <div class="col-md-6">
+                                <div class="card card-elevated p-3 h-100 border-secondary">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="badge badge-brand">STEP 1</span>
+                                        <a href="http://192.168.0.119:8080" target="_blank" rel="noopener" class="text-brand small text-decoration-none fw-bold">
+                                            Open DiscoPanel <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                        </a>
+                                    </div>
+                                    <h6 class="fw-bold text-light">Prepare DiscoPanel & Port Forwarding</h6>
+                                    <ol class="text-secondary small ps-3 mb-2">
+                                        <li class="mb-1">Find your Public WAN IP on your DiscoPanel terminal (or click <strong>Detect</strong> above):</li>
+                                    </ol>
+                                    <div class="bg-black p-2 rounded border border-secondary d-flex justify-content-between align-items-center mb-2">
+                                        <code class="text-brand small user-select-all" id="cmd-wan-ip">curl -4 ifconfig.me</code>
+                                        <button class="btn btn-sm btn-outline-light py-0 px-2" onclick="copyTextById('cmd-wan-ip', this)">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                    <ol class="text-secondary small ps-3 mb-0" start="2">
+                                        <li class="mb-1">In <a href="http://192.168.0.119:8080" target="_blank" class="text-info">DiscoPanel</a>, verify <code>server.properties</code> has <code>server-port=<span class="tcp-port-val">25565</span></code>, <code>server-ip=</code> (empty), and <code>prevent-proxy-connections=false</code>.</li>
+                                        <li>On your router, forward <strong>TCP Port <span class="tcp-port-val">25565</span></strong> &rarr; <code>192.168.0.119:<span class="tcp-port-val">25565</span></code>.</li>
+                                    </ol>
+                                </div>
+                            </div>
+
+                            <!-- Step 2 -->
+                            <div class="col-md-6">
+                                <div class="card card-elevated p-3 h-100 border-secondary">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="badge badge-brand">STEP 2</span>
+                                        <a href="https://panel.tcpshield.com/" target="_blank" rel="noopener" class="text-brand small text-decoration-none fw-bold">
+                                            Open TCPShield Panel <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                        </a>
+                                    </div>
+                                    <h6 class="fw-bold text-light">Create Network & Backend Set in TCPShield</h6>
+                                    <ol class="text-secondary small ps-3 mb-2">
+                                        <li class="mb-1">Log into <a href="https://panel.tcpshield.com/" target="_blank" class="text-info">panel.tcpshield.com</a> and click <strong>Add Network</strong> (e.g. <code>DiscoPanel</code>).</li>
+                                        <li class="mb-1">Go to <strong>Backends</strong> &rarr; <strong>Add Set</strong> (Name: <code>DiscoPanel-Main</code>) and paste your Backend IP:Port:</li>
+                                    </ol>
+                                    <div class="bg-black p-2 rounded border border-secondary d-flex justify-content-between align-items-center mb-2">
+                                        <code class="text-brand small user-select-all" id="cmd-backend-ip">YOUR_PUBLIC_WAN_IP:25565</code>
+                                        <button class="btn btn-sm btn-outline-light py-0 px-2" onclick="copyTextById('cmd-backend-ip', this)">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                    <div class="alert alert-dark border-warning py-2 px-3 small text-light mb-0">
+                                        <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
+                                        <strong>Proxy Protocol:</strong> Set to <span class="badge bg-success">Disabled</span> so all Fabric/Forge/NeoForge modpacks work immediately without extra plugins. (Only enable if you install <a href="https://github.com/TCPShield/RealIP/releases" target="_blank" class="text-info">TCPShield RealIP</a>).
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 3 -->
+                            <div class="col-md-6">
+                                <div class="card card-elevated p-3 h-100 border-secondary">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="badge badge-brand">STEP 3</span>
+                                        <a href="https://panel.tcpshield.com/" target="_blank" rel="noopener" class="text-brand small text-decoration-none fw-bold">
+                                            TCPShield Domains <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                        </a>
+                                    </div>
+                                    <h6 class="fw-bold text-light">Verify Domain & Link Hostname</h6>
+                                    <ol class="text-secondary small ps-3 mb-2">
+                                        <li class="mb-1">In TCPShield, go to <strong>Domains</strong> &rarr; <strong>Add Domain</strong> and enter <code class="text-light" id="tcp-root-domain-label">yourdomain.com</code>.</li>
+                                        <li class="mb-1">Copy the <code>tcpshield-verify=...</code> TXT value, add a <strong>TXT Record</strong> for <code>@</code> in your DNS provider, and click <strong>Verify</strong> in TCPShield.</li>
+                                        <li class="mb-1">Go to <strong>Hostnames</strong> &rarr; <strong>Add Hostname</strong>, link to Backend Set <code>DiscoPanel-Main</code>, and enter:</li>
+                                    </ol>
+                                    <div class="bg-black p-2 rounded border border-secondary d-flex justify-content-between align-items-center">
+                                        <code class="text-brand small user-select-all" id="cmd-hostname-val">mc.yourdomain.com</code>
+                                        <button class="btn btn-sm btn-outline-light py-0 px-2" onclick="copyTextById('cmd-hostname-val', this)">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 4 -->
+                            <div class="col-md-6">
+                                <div class="card card-elevated p-3 h-100 border-secondary">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="badge badge-brand">STEP 4</span>
+                                        <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener" class="text-brand small text-decoration-none fw-bold">
+                                            Open Cloudflare DNS <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                        </a>
+                                    </div>
+                                    <h6 class="fw-bold text-light">Point Custom Domain CNAME to TCPShield</h6>
+                                    <p class="text-secondary small mb-2">
+                                        Copy your <strong>Protected CNAME</strong> from TCPShield's Overview tab and create this DNS record in <a href="https://dash.cloudflare.com/" target="_blank" class="text-info">Cloudflare</a> / your registrar:
+                                    </p>
+                                    <div class="bg-black p-2 rounded border border-secondary d-flex justify-content-between align-items-center mb-2">
+                                        <code class="text-brand small user-select-all" id="cmd-dns-cname">Type: CNAME | Name: mc | Target: xxxxxxxx.tcpshield.net | Proxy: DNS Only (Grey Cloud)</code>
+                                        <button class="btn btn-sm btn-outline-light py-0 px-2" onclick="copyTextById('cmd-dns-cname', this)">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                    <div class="small text-secondary">
+                                        <i class="bi bi-cloud-slash text-info me-1"></i><strong>Cloudflare Note:</strong> Keep the Cloudflare toggle on <strong>DNS Only (Grey Cloud)</strong> so TCPShield handles Minecraft TCP traffic.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 5 -->
+                            <div class="col-12">
+                                <div class="card card-elevated p-3 border-secondary">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <span class="badge badge-brand me-2">STEP 5 (OPTIONAL PRO SECURITY)</span>
+                                            <strong class="text-light">Firewall Lock-Down on DiscoPanel (Prevent Direct IP Bypass)</strong>
+                                        </div>
+                                        <a href="https://tcpshield.com/v4/" target="_blank" rel="noopener" class="text-brand small text-decoration-none fw-bold">
+                                            View TCPShield IPv4 List <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                        </a>
+                                    </div>
+                                    <p class="text-secondary small mb-2">
+                                        Once players can connect via <code class="text-light" id="tcp-connect-preview">mc.yourdomain.com</code>, run this on your DiscoPanel terminal (<code>root@discopanel</code>) so only TCPShield proxy nodes and your local LAN can connect to port <span class="tcp-port-val">25565</span>:
+                                    </p>
+                                    <div class="bg-black p-3 rounded border border-secondary d-flex justify-content-between align-items-center">
+                                        <code class="text-brand small user-select-all" id="cmd-ufw-lockdown">for ip in $(curl -fsSL https://tcpshield.com/v4/); do ufw allow proto tcp from "$ip" to any port 25565 comment 'TCPShield'; done && ufw allow proto tcp from 192.168.0.0/24 to any port 25565 comment 'Local LAN'</code>
+                                        <button class="btn btn-sm btn-outline-light ms-3" onclick="copyTextById('cmd-ufw-lockdown', this)">
+                                            <i class="bi bi-clipboard"></i> Copy
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -744,7 +953,7 @@
                     <code class="text-brand small user-select-all" id="disco-import-cmd">curl -fsSL https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/discopanel-import.sh | bash -s -- /tmp/server.zip</code>
                 </div>
 
-                <div class="card p-3 border-secondary mb-2">
+                <div class="card p-3 border-secondary mb-3">
                     <h6 class="fw-bold text-light mb-2"><i class="bi bi-info-circle text-info me-1"></i>What this does automatically:</h6>
                     <ul class="mb-0 text-secondary small ps-3">
                         <li>Creates a fresh server instance directory in <code>/opt/discopanel/data/servers/</code></li>
@@ -752,10 +961,27 @@
                         <li>Sets file permissions and restarts the DiscoPanel daemon to index the new server</li>
                     </ul>
                 </div>
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-2 border-top border-secondary">
+                    <div class="d-flex gap-2">
+                        <a href="http://192.168.0.119:8080" target="_blank" rel="noopener" class="btn btn-outline-warning btn-sm fw-bold">
+                            <i class="bi bi-box-arrow-up-right me-1"></i> Open DiscoPanel (192.168.0.119)
+                        </a>
+                        <a href="https://panel.tcpshield.com/" target="_blank" rel="noopener" class="btn btn-outline-info btn-sm fw-bold">
+                            <i class="bi bi-shield-lock-fill me-1"></i> Open TCPShield Panel
+                        </a>
+                    </div>
+                    <button type="button" class="btn btn-brand btn-sm fw-bold" data-bs-dismiss="modal" onclick="openTcpShieldGuide()">
+                        <i class="bi bi-globe2 me-1"></i> Custom Domain + TCPShield Steps &rarr;
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- API Settings Modal -->
+<div class="modal fade" id="settingsModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content card-elevated text-light">
             <div class="modal-header border-secondary">
@@ -1475,6 +1701,76 @@
         const icon = document.getElementById('copy-icon');
         icon.className = 'bi bi-check2';
         setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 2000);
+    }
+
+    function copyTextById(elemId, btnElem) {
+        const el = document.getElementById(elemId);
+        if (!el) return;
+        navigator.clipboard.writeText(el.innerText);
+        if (btnElem) {
+            const orig = btnElem.innerHTML;
+            btnElem.innerHTML = '<i class="bi bi-check2 text-brand"></i>';
+            setTimeout(() => { btnElem.innerHTML = orig; }, 1800);
+        }
+    }
+
+    function openTcpShieldGuide() {
+        document.getElementById('analysis-card').classList.add('d-none');
+        document.getElementById('input-card').classList.remove('d-none');
+        const tabBtn = document.getElementById('tcpshield-tab-btn');
+        if (tabBtn) {
+            const tab = new bootstrap.Tab(tabBtn);
+            tab.show();
+            tabBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    function detectPublicWanIp() {
+        fetch('https://api.ipify.org?format=json')
+        .then(res => res.json())
+        .then(data => {
+            if (data.ip) {
+                document.getElementById('tcp-wan-ip-input').value = data.ip;
+                updateTcpShieldPreview();
+            }
+        })
+        .catch(() => {
+            alert("Could not auto-detect WAN IP from browser. Run 'curl -4 ifconfig.me' on your server.");
+        });
+    }
+
+    function updateTcpShieldPreview() {
+        const fullSub = (document.getElementById('tcp-subdomain-input').value || 'mc.yourdomain.com').trim();
+        const wanIp = (document.getElementById('tcp-wan-ip-input').value || 'YOUR_PUBLIC_WAN_IP').trim();
+        const port = (document.getElementById('tcp-port-input').value || '25565').trim();
+        const cname = (document.getElementById('tcp-cname-input').value || 'xxxxxxxx.tcpshield.net').trim();
+
+        const parts = fullSub.split('.');
+        const subPrefix = parts.length > 2 ? parts[0] : '@';
+        const rootDomain = parts.length > 2 ? parts.slice(1).join('.') : fullSub;
+
+        document.querySelectorAll('.tcp-port-val').forEach(el => el.innerText = port);
+        const backendEl = document.getElementById('cmd-backend-ip');
+        if (backendEl) backendEl.innerText = `${wanIp}:${port}`;
+
+        const rootDomEl = document.getElementById('tcp-root-domain-label');
+        if (rootDomEl) rootDomEl.innerText = rootDomain;
+
+        const hostValEl = document.getElementById('cmd-hostname-val');
+        if (hostValEl) hostValEl.innerText = fullSub;
+
+        const connPrevEl = document.getElementById('tcp-connect-preview');
+        if (connPrevEl) connPrevEl.innerText = fullSub;
+
+        const dnsCnameEl = document.getElementById('cmd-dns-cname');
+        if (dnsCnameEl) {
+            dnsCnameEl.innerText = `Type: CNAME | Name: ${subPrefix} | Target: ${cname} | Proxy: DNS Only (Grey Cloud)`;
+        }
+
+        const ufwEl = document.getElementById('cmd-ufw-lockdown');
+        if (ufwEl) {
+            ufwEl.innerText = `for ip in $(curl -fsSL https://tcpshield.com/v4/); do ufw allow proto tcp from "$ip" to any port ${port} comment 'TCPShield'; done && ufw allow proto tcp from 192.168.0.0/24 to any port ${port} comment 'Local LAN'`;
+        }
     }
 
     // Auto-load popular catalog on initial page view

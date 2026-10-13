@@ -368,9 +368,6 @@
             <button class="btn btn-outline-info btn-sm" onclick="openTcpShieldGuide()">
                 <i class="bi bi-shield-lock-fill me-1"></i> TCPShield & Domain Setup
             </button>
-            <button class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#settingsModal">
-                <i class="bi bi-key-fill me-1 text-warning"></i> API Settings
-            </button>
             <a href="https://github.com/IAndrexI/minecraftserver" target="_blank" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-github me-1"></i> GitHub
             </a>
@@ -1088,28 +1085,6 @@
     </div>
 </div>
 
-<!-- API Settings Modal -->
-<div class="modal fade" id="settingsModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content card-elevated text-light">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title"><i class="bi bi-sliders me-2"></i>API Configuration</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <label class="form-label fw-bold">CurseForge API Key</label>
-                <input type="text" id="curseforge-key-input" class="form-control" placeholder="$2a$10$...">
-                <div class="form-text text-secondary">
-                    Saved locally in your browser.
-                </div>
-            </div>
-            <div class="modal-footer border-secondary">
-                <button type="button" class="btn btn-brand" onclick="saveSettings()">Save Settings</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Version Selection Modal for Remote Packs -->
 <div class="modal fade" id="versionModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -1150,16 +1125,8 @@
     const savedTheme = localStorage.getItem('protutech_theme') || 'nades-neon';
     setTheme(savedTheme);
 
-    // Load saved CurseForge key
-    const savedCfKey = localStorage.getItem('cf_api_key') || '$2a$10$L4p7ZjoaaSXzBxrUGl8UXeSOEEKJWQJ5PoHVqwVbbTItG/4EPrmMK';
-    document.getElementById('curseforge-key-input').value = savedCfKey;
-
-    function saveSettings() {
-        const val = document.getElementById('curseforge-key-input').value.trim();
-        localStorage.setItem('cf_api_key', val);
-        bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
-        fetchCatalog();
-    }
+    // Ensure any legacy client-side API token is purged from browser storage
+    localStorage.removeItem('cf_api_key');
 
     // Drag & drop handlers
     const dropzone = document.getElementById('dropzone');
@@ -1222,14 +1189,13 @@
         const query = document.getElementById('catalog-search-input').value.trim();
         const provider = document.getElementById('search-provider-select').value;
         const sort = document.getElementById('search-sort-select') ? document.getElementById('search-sort-select').value : 'downloads';
-        const cfKey = localStorage.getItem('cf_api_key') || '';
         const loading = document.getElementById('catalog-loading');
         const grid = document.getElementById('modpack-grid');
 
         loading.classList.remove('d-none');
         grid.innerHTML = '';
 
-        fetch(`/api/search?q=${encodeURIComponent(query)}&provider=${provider}&sort=${sort}&cf_key=${encodeURIComponent(cfKey)}`)
+        fetch(`/api/search?q=${encodeURIComponent(query)}&provider=${provider}&sort=${sort}`)
         .then(res => res.json())
         .then(data => {
             loading.classList.add('d-none');
@@ -1287,8 +1253,7 @@
         const versionModal = new bootstrap.Modal(document.getElementById('versionModal'));
         versionModal.show();
 
-        const cfKey = localStorage.getItem('cf_api_key') || '';
-        fetch(`/api/versions?provider=${provider}&project_id=${projectId}&cf_key=${encodeURIComponent(cfKey)}`)
+        fetch(`/api/versions?provider=${provider}&project_id=${projectId}`)
         .then(res => res.json())
         .then(data => {
             loading.classList.add('d-none');
@@ -1615,7 +1580,6 @@
         const provider = document.getElementById('builder-provider-filter') ? document.getElementById('builder-provider-filter').value : 'all';
         const sort = document.getElementById('builder-sort-filter') ? document.getElementById('builder-sort-filter').value : 'downloads';
         const category = document.getElementById('builder-category-filter') ? document.getElementById('builder-category-filter').value : '';
-        const cfKey = localStorage.getItem('cf_api_key') || '';
 
         const grid = document.getElementById('builder-catalog-grid');
         const loading = document.getElementById('builder-catalog-loading');
@@ -1634,7 +1598,7 @@
             }
         }
 
-        const url = `/api/search-mods?q=${encodeURIComponent(query)}&mc_version=${mcVer}&loader=${loader}&provider=${provider}&sort=${sort}&category=${category}&limit=100&offset=${builderOffset}&cf_key=${encodeURIComponent(cfKey)}`;
+        const url = `/api/search-mods?q=${encodeURIComponent(query)}&mc_version=${mcVer}&loader=${loader}&provider=${provider}&sort=${sort}&category=${category}&limit=100&offset=${builderOffset}`;
 
         fetch(url)
         .then(res => res.json())
@@ -1747,7 +1711,6 @@
         const name = document.getElementById('builder-pack-name').value.trim() || 'Custom Modpack';
         const loader = document.getElementById('builder-loader').value;
         const mcVer = document.getElementById('builder-mc-version').value;
-        const cfKey = localStorage.getItem('cf_api_key') || '';
 
         const formData = new FormData();
         formData.append("pack_name", name);
@@ -1757,7 +1720,6 @@
         formData.append("export_target", target);
         formData.append("ram_gb", "6");
         formData.append("port", "25565");
-        formData.append("cf_key", cfKey);
 
         const labelMap = {
             dual: 'Dual Pack (Client + Server + CF/MR)',

@@ -12,15 +12,17 @@
 set -e
 
 MODE="import"
+WORLD_SOURCE=""
 if [ "$1" = "--create" ] || [ "$1" = "-c" ]; then
     MODE="create"
-     shift
+    shift
     CUSTOM_NAME="${1:-Minecraft Server}"
     ARG_LOADER="${2:-fabric}"
     ARG_MC_VER="${3:-1.20.1}"
     MEM_GB="${4:-6}"
     SERVER_PORT="${5:-25565}"
     ZIP_SOURCE=""
+    WORLD_SOURCE="${6:-}"
 else
     ZIP_SOURCE="${1:-}"
     CUSTOM_NAME="${2:-}"
@@ -28,7 +30,17 @@ else
     SERVER_PORT="${4:-25565}"
     ARG_LOADER="${5:-}"
     ARG_MC_VER="${6:-}"
+    WORLD_SOURCE="${7:-}"
 fi
+
+# Also check for explicit --world or --world-zip anywhere in remaining arguments
+for arg in "$@"; do
+    if [[ "$arg" == --world=* ]]; then
+        WORLD_SOURCE="${arg#*=}"
+    elif [[ "$arg" == --world-zip=* ]]; then
+        WORLD_SOURCE="${arg#*=}"
+    fi
+done
 
 DISCO_DATA="/opt/discopanel/data"
 DISCO_DB="$DISCO_DATA/discopanel.db"
@@ -118,10 +130,53 @@ view-distance=10
 simulation-distance=8
 allow-flight=true
 prevent-proxy-connections=false
+level-name=world
 enable-rcon=true
 rcon.port=25575
 rcon.password=discopanel_${SERVER_UUID:0:8}
 EOF
+fi
+
+# 3b. Import Minecraft World Save if provided
+if [ -n "$WORLD_SOURCE" ]; then
+    echo "==> Importing Minecraft World Save from $WORLD_SOURCE ..."
+    TEMP_WORLD="/tmp/discopanel_world_$SERVER_UUID"
+    mkdir -p "$TEMP_WORLD"
+    if [[ "$WORLD_SOURCE" =~ ^https?:// ]]; then
+        echo "==> Downloading world archive from LAN/Web..."
+        curl -fL "$WORLD_SOURCE" -o "$TEMP_WORLD/world.zip"
+        unzip -q -o "$TEMP_WORLD/world.zip" -d "$TEMP_WORLD/extracted"
+    elif [ -f "$WORLD_SOURCE" ]; then
+        echo "==> Extracting world zip..."
+        unzip -q -o "$WORLD_SOURCE" -d "$TEMP_WORLD/extracted"
+    elif [ -d "$WORLD_SOURCE" ]; then
+        cp -rf "$WORLD_SOURCE/"* "$TEMP_WORLD/extracted/" 2>/dev/null || true
+    fi
+
+    LEVEL_DAT_FILE=$(find "$TEMP_WORLD/extracted" -name "level.dat" 2>/dev/null | head -n 1)
+    if [ -n "$LEVEL_DAT_FILE" ]; then
+        WORLD_SRC_DIR=$(dirname "$LEVEL_DAT_FILE")
+        echo "==> Found level.dat in $WORLD_SRC_DIR; transferring world files into $TARGET_DIR/world/ ..."
+        mkdir -p "$TARGET_DIR/world"
+        cp -rf "$WORLD_SRC_DIR/"* "$TARGET_DIR/world/"
+        rm -f "$TARGET_DIR/world/session.lock"
+        echo "==> Singleplayer world successfully imported into /data/world!"
+    else
+        echo "==> Note: No level.dat found in extracted world source; world may generate fresh."
+    fi
+    rm -rf "$TEMP_WORLD"
+fi
+
+# Clean up session.lock if world directory exists and ensure level-name=world in server.properties
+if [ -d "$TARGET_DIR/world" ]; then
+    rm -f "$TARGET_DIR/world/session.lock"
+    if [ -f "$TARGET_DIR/server.properties" ]; then
+        if grep -q "^level-name=" "$TARGET_DIR/server.properties"; then
+            sed -i 's/^level-name=.*/level-name=world/' "$TARGET_DIR/server.properties"
+        else
+            echo "level-name=world" >> "$TARGET_DIR/server.properties"
+        fi
+    fi
 fi
 
 # Ensure permissions for itzg/minecraft-server (UID 1000)
@@ -381,3 +436,8 @@ echo " Container:      $CONTAINER_NAME"
 echo " Server Mods:    $MOD_COUNT .jar files indexed"
 echo " Connect Port:   $SERVER_PORT"
 echo "================================================================="
+echo "STATUS_SUCCESS=true"
+echo "SERVER_UUID=$SERVER_UUID"
+echo "CONTAINER_NAME=$CONTAINER_NAME"
+echo "SERVER_PORT=$SERVER_PORT"
+echo "DISCOPANEL_URL=http://192.168.0.119:8080/servers/$SERVER_UUID"

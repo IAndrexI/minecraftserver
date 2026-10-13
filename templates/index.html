@@ -1052,18 +1052,88 @@
 
 <!-- DiscoPanel Direct Server Creation & Auto-Import Modal -->
 <div class="modal fade" id="discoTransferModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content card-elevated text-light">
             <div class="modal-header border-secondary">
-                <h5 class="modal-title"><i class="bi bi-hdd-rack-fill text-warning me-2"></i>Direct Server Creation in DiscoPanel (192.168.0.119)</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-hdd-rack-fill text-warning fs-4"></i>
+                    <div>
+                        <h5 class="modal-title mb-0 fw-bold">Direct Automated Deployment to DiscoPanel (<span id="disco-title-host">192.168.0.119</span>)</h5>
+                        <small class="text-secondary">Zero-terminal 1-click deployment with modloader verification, Java runtime auto-selection &amp; world save import</small>
+                    </div>
+                </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <!-- Server Parameters Row -->
+            <div class="modal-body p-4">
+
+                <!-- 1. Host Access & Connection Parameters -->
                 <div class="card p-3 border-secondary mb-3" style="background-color: var(--bg-code);">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="small fw-bold text-light"><i class="bi bi-sliders me-1 text-brand"></i>Server Instance Parameters</span>
-                        <span id="disco-stage-badge" class="badge badge-brand">Ready</span>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 pb-2 border-bottom border-secondary">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-shield-lock-fill text-brand"></i>
+                            <span class="fw-bold text-light small">DiscoPanel Host Connection (SSH / SFTP)</span>
+                            <span id="disco-conn-badge" class="badge bg-secondary">Untested</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="disco-remember-creds" checked>
+                                <label class="form-check-label small text-secondary" for="disco-remember-creds">Remember credentials</label>
+                            </div>
+                            <button type="button" class="btn btn-outline-info btn-sm fw-bold" onclick="testHostConnection()">
+                                <i class="bi bi-plug-fill me-1"></i>Test Host Access
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-3">
+                            <label class="form-label small text-secondary mb-1">Host IP / FQDN</label>
+                            <input type="text" id="disco-host" class="form-control form-control-sm" value="192.168.0.119" oninput="saveDiscoCredentials(); document.getElementById('disco-title-host').innerText=this.value;">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-secondary mb-1">SSH Port</label>
+                            <input type="number" id="disco-port" class="form-control form-control-sm" value="22" oninput="saveDiscoCredentials()">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-secondary mb-1">SSH User</label>
+                            <input type="text" id="disco-user" class="form-control form-control-sm" value="root" oninput="saveDiscoCredentials()">
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label small text-secondary mb-1">Root Password (or use SSH Key below)</label>
+                            <div class="input-group input-group-sm">
+                                <input type="password" id="disco-pass" class="form-control" placeholder="Enter root password" oninput="saveDiscoCredentials()">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePassVisibility('disco-pass', this)">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Collapsible SSH Private Key -->
+                    <div class="mt-2">
+                        <a class="text-secondary small text-decoration-none" data-bs-toggle="collapse" href="#discoKeyCollapse" role="button">
+                            <i class="bi bi-key-fill text-warning me-1"></i>Advanced: Use SSH Private Key instead of password &darr;
+                        </a>
+                        <div class="collapse mt-2" id="discoKeyCollapse">
+                            <textarea id="disco-key" class="form-control form-control-sm font-monospace" rows="3" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" oninput="saveDiscoCredentials()"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Live Host Diagnostics Feedback Alert -->
+                    <div id="disco-conn-feedback" class="mt-2 d-none">
+                        <!-- Populated by testHostConnection() -->
+                    </div>
+                </div>
+
+                <!-- 2. Server Parameters & Deep Loader / Runtime Diagnostics -->
+                <div class="card p-3 border-secondary mb-3" style="background-color: var(--bg-surface);">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 pb-2 border-bottom border-secondary">
+                        <span class="small fw-bold text-light"><i class="bi bi-cpu-fill me-1 text-brand"></i>Server Configuration &amp; Auto-Diagnostics</span>
+                        <div class="d-flex gap-2" id="disco-runtime-diagnostics">
+                            <span class="badge bg-secondary" id="diag-loader-badge"><i class="bi bi-gear me-1"></i>Loader: Fabric</span>
+                            <span class="badge bg-secondary" id="diag-mcver-badge"><i class="bi bi-tag me-1"></i>MC: 1.20.1</span>
+                            <span class="badge badge-brand" id="diag-java-badge"><i class="bi bi-cup-hot-fill me-1"></i>Java 17 (itzg:java17)</span>
+                        </div>
                     </div>
                     <div class="row g-2">
                         <div class="col-md-4">
@@ -1072,7 +1142,7 @@
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small text-secondary mb-1">Mod Loader</label>
-                            <select id="disco-srv-loader" class="form-select form-select-sm" onchange="updateDiscoModalCommands()">
+                            <select id="disco-srv-loader" class="form-select form-select-sm" onchange="updateDiscoModalCommands(); updateJavaRuntimeBadge();">
                                 <option value="fabric" selected>Fabric</option>
                                 <option value="forge">Forge</option>
                                 <option value="neoforge">NeoForge</option>
@@ -1082,7 +1152,7 @@
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small text-secondary mb-1">MC Version</label>
-                            <input type="text" id="disco-srv-mcver" class="form-control form-control-sm" value="1.20.1" oninput="updateDiscoModalCommands()">
+                            <input type="text" id="disco-srv-mcver" class="form-control form-control-sm" value="1.20.1" oninput="updateDiscoModalCommands(); updateJavaRuntimeBadge();">
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small text-secondary mb-1">RAM (GB)</label>
@@ -1095,61 +1165,137 @@
                     </div>
                 </div>
 
-                <!-- Option 1: Full Modpack Server Auto-Download + Direct Create -->
-                <div id="disco-staged-section" class="mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="small fw-bold text-light">
-                            <i class="bi bi-cloud-arrow-down-fill text-brand me-1"></i>Option 1: Create Server With Converted Mods & Configs (Run on <code>root@discopanel</code>)
-                        </span>
-                        <button class="btn btn-sm btn-outline-light py-0 px-2" onclick="copyTextById('disco-import-cmd', this)">
-                            <i class="bi bi-clipboard me-1"></i>Copy
+                <!-- 3. Singleplayer World Save Import & Inspection -->
+                <div class="card p-3 border-secondary mb-3" style="background-color: var(--bg-surface);">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-globe-americas text-brand"></i>
+                            <span class="small fw-bold text-light">Singleplayer World Save Import (Optional)</span>
+                            <span id="disco-world-status-badge" class="badge bg-secondary">No World Attached</span>
+                        </div>
+                        <span class="text-secondary small">Automatically cleans session.lock &amp; mounts to /data/world</span>
+                    </div>
+
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-8">
+                            <input type="file" id="disco-modal-world-input" class="form-control form-control-sm" accept=".zip" onchange="handleModalWorldSelect(this)">
+                        </div>
+                        <div class="col-md-4 d-flex gap-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="clearModalWorld()">
+                                <i class="bi bi-x-circle me-1"></i>Remove World
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- World Inspection Diagnostic Banner -->
+                    <div id="disco-world-diag-banner" class="mt-2 d-none">
+                        <!-- Populated by inspectWorldSave() -->
+                    </div>
+
+                    <div class="text-secondary small mt-2">
+                        <i class="bi bi-folder2-open me-1 text-warning"></i>Local Saves Path:
+                        <code>%USERPROFILE%\curseforge\minecraft\Instances\&lt;Pack Name&gt;\saves\&lt;World&gt;</code> (Right-click &rarr; Send to &rarr; Compressed (.zip) folder)
+                    </div>
+                </div>
+
+                <!-- 4. One-Click Primary Deployment Action & Live Progress Log -->
+                <div class="card p-3 border-secondary mb-3" style="background-color: var(--bg-code);">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                        <div>
+                            <h6 class="fw-bold text-light mb-1"><i class="bi bi-lightning-charge-fill text-warning me-1"></i>One-Click Automated Deployment</h6>
+                            <div class="small text-secondary">
+                                Connects to <code>root@<span class="disco-host-label">192.168.0.119</span></code>, uploads packages, starts the Docker container with UID 1000 permissions, and registers the server in <code>discopanel.db</code>.
+                            </div>
+                        </div>
+                        <button type="button" id="btn-deploy-discopanel" class="btn btn-warning btn-lg fw-bold px-4 text-dark shadow" onclick="executeDirectDiscoDeploy()">
+                            <i class="bi bi-rocket-takeoff-fill me-2"></i>Deploy Directly to DiscoPanel
                         </button>
                     </div>
-                    <div class="bg-black p-3 rounded-3 border border-secondary">
-                        <code class="text-brand small user-select-all" id="disco-import-cmd">curl -fsSL https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/discopanel-import.sh | bash -s -- --create "Minecraft Server" "fabric" "1.20.1" 6 25565</code>
+
+                    <!-- Live Deployment Console / Log Panel -->
+                    <div id="disco-deploy-console-wrap" class="mt-3 d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small fw-bold text-light">
+                                <span class="spinner-border spinner-border-sm text-warning me-2" id="disco-deploy-spinner"></span>
+                                <span id="disco-deploy-status-text">Deploying to DiscoPanel host...</span>
+                            </span>
+                            <span class="badge bg-secondary small" id="disco-deploy-step">In Progress</span>
+                        </div>
+                        <div class="bg-black p-3 rounded-3 border border-secondary font-monospace small" style="max-height: 220px; overflow-y: auto;" id="disco-deploy-log">
+                            <!-- Streamed logs appear here -->
+                        </div>
                     </div>
-                    <div class="small text-secondary mt-1">
-                        Pulls the packaged server directly from this converter over LAN, extracts all mods &amp; configs, starts the Docker container, and registers the server in <code>discopanel.db</code>.
+
+                    <!-- Deployment Success Notification & Direct Link -->
+                    <div id="disco-deploy-success-box" class="alert alert-dark border-success mt-3 d-none">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div>
+                                <h6 class="fw-bold text-success mb-1"><i class="bi bi-check-circle-fill me-2"></i>Server Successfully Created &amp; Running in DiscoPanel!</h6>
+                                <div class="small text-light">Your server container is running and indexed in DiscoPanel.</div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a id="disco-success-link" href="#" target="_blank" rel="noopener" class="btn btn-success fw-bold">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i>Open Server in DiscoPanel
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Option 2: Standalone Direct Server Creation (No Zip Needed) -->
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="small fw-bold text-light">
-                            <i class="bi bi-lightning-charge-fill text-warning me-1"></i>Option 2: Direct Standalone Server Creation Command (No .zip required)
-                        </span>
-                        <button class="btn btn-sm btn-outline-light py-0 px-2" onclick="copyTextById('disco-direct-create-cmd', this)">
-                            <i class="bi bi-clipboard me-1"></i>Copy
-                        </button>
-                    </div>
-                    <div class="bg-black p-3 rounded-3 border border-secondary">
-                        <code class="text-brand small user-select-all" id="disco-direct-create-cmd">curl -fsSL https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/discopanel-import.sh | bash -s -- --create "Minecraft Server" "fabric" "1.20.1" 6 25565</code>
+                <!-- 5. Manual Terminal Commands Accordion (Alternative Fallback) -->
+                <div class="accordion" id="discoManualAccordion">
+                    <div class="accordion-item border-secondary bg-transparent">
+                        <h2 class="accordion-header" id="headingManual">
+                            <button class="accordion-button collapsed bg-dark text-light border-secondary small py-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseManual">
+                                <i class="bi bi-terminal-fill text-secondary me-2"></i>Manual SSH Terminal Commands (Alternative for manual terminal users)
+                            </button>
+                        </h2>
+                        <div id="collapseManual" class="accordion-collapse collapse" data-bs-parent="#discoManualAccordion">
+                            <div class="accordion-body bg-dark text-light p-3">
+                                <!-- Option 1 -->
+                                <div id="disco-staged-section" class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="small fw-bold text-light">Option 1: Pull Staged Package &amp; Create Server</span>
+                                        <button class="btn btn-sm btn-outline-light py-0 px-2" onclick="copyTextById('disco-import-cmd', this)">
+                                            <i class="bi bi-clipboard me-1"></i>Copy
+                                        </button>
+                                    </div>
+                                    <div class="bg-black p-2 rounded border border-secondary">
+                                        <code class="text-brand small user-select-all" id="disco-import-cmd">curl -fsSL https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/discopanel-import.sh | bash -s -- --create "Minecraft Server" "fabric" "1.20.1" 6 25565</code>
+                                    </div>
+                                </div>
+                                <!-- Option 2 -->
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="small fw-bold text-light">Option 2: Standalone Direct Server Creation Command</span>
+                                        <button class="btn btn-sm btn-outline-light py-0 px-2" onclick="copyTextById('disco-direct-create-cmd', this)">
+                                            <i class="bi bi-clipboard me-1"></i>Copy
+                                        </button>
+                                    </div>
+                                    <div class="bg-black p-2 rounded border border-secondary">
+                                        <code class="text-brand small user-select-all" id="disco-direct-create-cmd">curl -fsSL https://raw.githubusercontent.com/IAndrexI/minecraftserver/main/discopanel-import.sh | bash -s -- --create "Minecraft Server" "fabric" "1.20.1" 6 25565</code>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="card p-3 border-secondary mb-3">
-                    <h6 class="fw-bold text-light mb-2"><i class="bi bi-check2-circle text-brand me-1"></i>What this command does directly inside DiscoPanel:</h6>
-                    <ul class="mb-0 text-secondary small ps-3">
-                        <li>Creates the server directory in <code>/opt/discopanel/data/servers/&lt;name&gt;_&lt;uuid&gt;</code> with <code>eula=true</code> and RCON enabled</li>
-                        <li>Starts the <code>itzg/minecraft-server</code> Docker container with DiscoPanel labels (<code>discopanel.managed=true</code>) and Java 21/17/8 auto-selection</li>
-                        <li>Registers the server, configuration, and all <code>.jar</code> mods directly inside <code>/opt/discopanel/data/discopanel.db</code> so it appears immediately in the DiscoPanel Web UI</li>
-                    </ul>
-                </div>
-
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-2 border-top border-secondary">
+                <!-- Footer Links -->
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3 mt-3 border-top border-secondary">
                     <div class="d-flex gap-2">
                         <a href="http://192.168.0.119:8080" target="_blank" rel="noopener" class="btn btn-outline-warning btn-sm fw-bold">
-                            <i class="bi bi-box-arrow-up-right me-1"></i> Open DiscoPanel (192.168.0.119)
+                            <i class="bi bi-box-arrow-up-right me-1"></i> Open DiscoPanel UI (192.168.0.119)
                         </a>
                         <a href="https://panel.tcpshield.com/" target="_blank" rel="noopener" class="btn btn-outline-info btn-sm fw-bold">
-                            <i class="bi bi-shield-lock-fill me-1"></i> Open TCPShield Panel
+                            <i class="bi bi-shield-lock-fill me-1"></i> TCPShield Panel
                         </a>
                     </div>
                     <button type="button" class="btn btn-brand btn-sm fw-bold" data-bs-dismiss="modal" onclick="openTcpShieldGuide()">
                         <i class="bi bi-globe2 me-1"></i> Custom Domain + TCPShield Steps &rarr;
                     </button>
                 </div>
+
             </div>
         </div>
     </div>
@@ -1513,6 +1659,351 @@
     }
 
     let currentStagedDiscoUrl = null;
+    let currentStagedPackageId = null;
+    let attachedWorldFile = null;
+
+    function initDiscoCredentials() {
+        const host = localStorage.getItem('disco_host') || '192.168.0.119';
+        const port = localStorage.getItem('disco_port') || '22';
+        const user = localStorage.getItem('disco_user') || 'root';
+        const pass = localStorage.getItem('disco_pass') || '';
+        const key = localStorage.getItem('disco_key') || '';
+        const remember = localStorage.getItem('disco_remember') !== 'false';
+
+        if (document.getElementById('disco-host')) document.getElementById('disco-host').value = host;
+        if (document.getElementById('disco-port')) document.getElementById('disco-port').value = port;
+        if (document.getElementById('disco-user')) document.getElementById('disco-user').value = user;
+        if (document.getElementById('disco-pass')) document.getElementById('disco-pass').value = pass;
+        if (document.getElementById('disco-key')) document.getElementById('disco-key').value = key;
+        if (document.getElementById('disco-remember-creds')) document.getElementById('disco-remember-creds').checked = remember;
+        if (document.getElementById('disco-title-host')) document.getElementById('disco-title-host').innerText = host;
+        document.querySelectorAll('.disco-host-label').forEach(el => el.innerText = host);
+    }
+
+    function saveDiscoCredentials() {
+        const remember = document.getElementById('disco-remember-creds') ? document.getElementById('disco-remember-creds').checked : true;
+        localStorage.setItem('disco_remember', remember ? 'true' : 'false');
+        if (remember) {
+            localStorage.setItem('disco_host', (document.getElementById('disco-host').value || '192.168.0.119').trim());
+            localStorage.setItem('disco_port', (document.getElementById('disco-port').value || '22').trim());
+            localStorage.setItem('disco_user', (document.getElementById('disco-user').value || 'root').trim());
+            localStorage.setItem('disco_pass', document.getElementById('disco-pass').value || '');
+            localStorage.setItem('disco_key', document.getElementById('disco-key').value || '');
+        } else {
+            localStorage.removeItem('disco_pass');
+            localStorage.removeItem('disco_key');
+        }
+    }
+
+    function togglePassVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        if (input.type === 'password') {
+            input.type = 'text';
+            btn.innerHTML = '<i class="bi bi-eye-slash"></i>';
+        } else {
+            input.type = 'password';
+            btn.innerHTML = '<i class="bi bi-eye"></i>';
+        }
+    }
+
+    function updateJavaRuntimeBadge() {
+        const mcVer = (document.getElementById('disco-srv-mcver') ? document.getElementById('disco-srv-mcver').value : '1.20.1').trim();
+        const loader = (document.getElementById('disco-srv-loader') ? document.getElementById('disco-srv-loader').value : 'fabric').trim();
+
+        const match = mcVer.match(/\d+/g) || [1, 20, 1];
+        const major = parseInt(match[0] || '1', 10);
+        const minor = parseInt(match[1] || '20', 10);
+        const patch = parseInt(match[2] || '0', 10);
+
+        let javaVer = 17;
+        let dockerTag = 'java17';
+        let desc = 'Java 17 (Standard)';
+
+        if (minor >= 21 || (minor === 20 && patch >= 5)) {
+            javaVer = 21;
+            dockerTag = 'java21';
+            desc = 'Java 21 (MC 1.20.5+ / 1.21+)';
+        } else if (minor >= 17) {
+            javaVer = 17;
+            dockerTag = 'java17';
+            desc = 'Java 17 (MC 1.17 - 1.20.4)';
+        } else {
+            javaVer = 8;
+            dockerTag = 'java8';
+            desc = 'Java 8 (MC 1.16.5 and older)';
+        }
+
+        const loaderBadge = document.getElementById('diag-loader-badge');
+        const mcverBadge = document.getElementById('diag-mcver-badge');
+        const javaBadge = document.getElementById('diag-java-badge');
+
+        if (loaderBadge) loaderBadge.innerHTML = `<i class="bi bi-gear-wide-connected me-1"></i>Loader: ${loader.toUpperCase()}`;
+        if (mcverBadge) mcverBadge.innerHTML = `<i class="bi bi-tag-fill me-1"></i>MC: ${mcVer}`;
+        if (javaBadge) javaBadge.innerHTML = `<i class="bi bi-cup-hot-fill me-1"></i>Java ${javaVer} (itzg:${dockerTag})`;
+    }
+
+    function testHostConnection() {
+        saveDiscoCredentials();
+        const host = document.getElementById('disco-host').value.trim();
+        const port = document.getElementById('disco-port').value.trim();
+        const user = document.getElementById('disco-user').value.trim();
+        const pass = document.getElementById('disco-pass').value;
+        const key = document.getElementById('disco-key').value;
+
+        const badge = document.getElementById('disco-conn-badge');
+        const feedback = document.getElementById('disco-conn-feedback');
+
+        badge.className = 'badge bg-warning text-dark';
+        badge.innerHTML = '<span class="spinner-border spinner-border-sm me-1" style="width:0.7rem;height:0.7rem;"></span>Testing SSH...';
+
+        feedback.className = 'alert alert-dark border-secondary p-2 small mt-2 d-flex align-items-center gap-2';
+        feedback.innerHTML = `<div class="spinner-border spinner-border-sm text-info"></div><span>Attempting direct connection to <code>${user}@${host}:${port}</code>...</span>`;
+        feedback.classList.remove('d-none');
+
+        const formData = new FormData();
+        formData.append('host', host);
+        formData.append('port', port);
+        formData.append('username', user);
+        if (pass) formData.append('password', pass);
+        if (key) formData.append('private_key', key);
+
+        fetch('/api/discopanel/test-connection', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                badge.className = 'badge bg-success';
+                badge.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Host Verified';
+
+                feedback.className = 'alert alert-dark border-success p-2 small mt-2';
+                feedback.innerHTML = `
+                    <div class="fw-bold text-success mb-1"><i class="bi bi-check-circle-fill me-1"></i>Connection Successful &amp; Host Verified!</div>
+                    <div class="text-light">
+                        <strong>Docker:</strong> ${data.docker_available ? '<span class="text-success">Available</span>' : '<span class="text-danger">Not Found</span>'} |
+                        <strong>DiscoPanel DB:</strong> ${data.discopanel_db_exists ? '<span class="text-success">Detected (/opt/discopanel/data)</span>' : '<span class="text-warning">Will be created</span>'} |
+                        <strong>Free Disk:</strong> ${data.disk_free}
+                    </div>
+                `;
+            } else {
+                badge.className = 'badge bg-danger';
+                badge.innerHTML = '<i class="bi bi-x-circle me-1"></i>Connection Failed';
+
+                feedback.className = 'alert alert-dark border-danger p-2 small mt-2';
+                feedback.innerHTML = `
+                    <div class="fw-bold text-danger mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>Failed to connect: ${data.error_type || 'Error'}</div>
+                    <div class="text-light mb-1">${data.message}</div>
+                    <div class="text-secondary small">Tip: Ensure SSH is enabled on <code>${host}</code>, port <code>${port}</code> is reachable, and the password or key is correct.</div>
+                `;
+            }
+        })
+        .catch(err => {
+            badge.className = 'badge bg-danger';
+            badge.innerText = 'Network Error';
+            feedback.className = 'alert alert-dark border-danger p-2 small mt-2';
+            feedback.innerHTML = `<span class="text-danger fw-bold">Request failed:</span> ${err}`;
+        });
+    }
+
+    function handleModalWorldSelect(input) {
+        if (!input.files || input.files.length === 0) {
+            clearModalWorld();
+            return;
+        }
+        attachedWorldFile = input.files[0];
+        inspectWorldSave(attachedWorldFile);
+    }
+
+    function clearModalWorld() {
+        attachedWorldFile = null;
+        const input = document.getElementById('disco-modal-world-input');
+        if (input) input.value = '';
+        const banner = document.getElementById('disco-world-diag-banner');
+        if (banner) banner.classList.add('d-none');
+        const badge = document.getElementById('disco-world-status-badge');
+        if (badge) {
+            badge.className = 'badge bg-secondary';
+            badge.innerText = 'No World Attached';
+        }
+    }
+
+    function inspectWorldSave(file) {
+        const badge = document.getElementById('disco-world-status-badge');
+        const banner = document.getElementById('disco-world-diag-banner');
+
+        if (badge) {
+            badge.className = 'badge bg-warning text-dark';
+            badge.innerHTML = '<span class="spinner-border spinner-border-sm me-1" style="width:0.7rem;height:0.7rem;"></span>Inspecting World...';
+        }
+
+        const formData = new FormData();
+        formData.append('world_file', file);
+
+        fetch('/api/inspect-world', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if (data.valid) {
+                if (badge) {
+                    badge.className = 'badge bg-success';
+                    badge.innerHTML = `<i class="bi bi-check2-circle me-1"></i>World Verified (${data.world_name})`;
+                }
+                if (banner) {
+                    banner.className = 'alert alert-dark border-success p-2 small mt-2';
+                    banner.innerHTML = `
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <div>
+                                <strong class="text-success"><i class="bi bi-globe-americas me-1"></i>${data.world_name}</strong>
+                                <span class="text-light ms-2">(${data.chunk_count} .mca chunk files, ${data.size_mb} MB)</span>
+                                <div class="text-secondary mt-1">
+                                    Dimensions: <span class="badge bg-dark border border-secondary text-light">${data.dimensions.join(', ')}</span>
+                                    ${data.mc_version ? ` | Original MC: <span class="badge bg-secondary">${data.mc_version}</span>` : ''}
+                                    ${data.has_session_lock ? ' | <span class="text-warning"><i class="bi bi-unlock-fill me-1"></i>session.lock cleared</span>' : ''}
+                                </div>
+                            </div>
+                            <span class="badge badge-brand">Ready to Mount to /data/world</span>
+                        </div>
+                    `;
+                    banner.classList.remove('d-none');
+                }
+            } else {
+                if (badge) {
+                    badge.className = 'badge bg-danger';
+                    badge.innerText = 'Invalid World';
+                }
+                if (banner) {
+                    banner.className = 'alert alert-dark border-danger p-2 small mt-2';
+                    banner.innerHTML = `<span class="text-danger fw-bold">World Save Error:</span> ${data.error || 'No level.dat found'}`;
+                    banner.classList.remove('d-none');
+                }
+            }
+        })
+        .catch(err => {
+            if (badge) {
+                badge.className = 'badge bg-secondary';
+                badge.innerText = 'Upload Error';
+            }
+        });
+    }
+
+    function appendDeployLog(line) {
+        const logBox = document.getElementById('disco-deploy-log');
+        if (!logBox) return;
+        const lineEl = document.createElement('div');
+        lineEl.innerText = line;
+        logBox.appendChild(lineEl);
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function executeDirectDiscoDeploy() {
+        saveDiscoCredentials();
+        const host = document.getElementById('disco-host').value.trim();
+        const port = document.getElementById('disco-port').value.trim();
+        const user = document.getElementById('disco-user').value.trim();
+        const pass = document.getElementById('disco-pass').value;
+        const key = document.getElementById('disco-key').value;
+
+        const srvName = document.getElementById('disco-srv-name').value.trim() || 'Minecraft Server';
+        const loader = document.getElementById('disco-srv-loader').value.trim();
+        const mcVer = document.getElementById('disco-srv-mcver').value.trim();
+        const ram = document.getElementById('disco-srv-ram').value.trim();
+        const srvPort = document.getElementById('disco-srv-port').value.trim();
+
+        const btn = document.getElementById('btn-deploy-discopanel');
+        const consoleWrap = document.getElementById('disco-deploy-console-wrap');
+        const logBox = document.getElementById('disco-deploy-log');
+        const statusText = document.getElementById('disco-deploy-status-text');
+        const stepBadge = document.getElementById('disco-deploy-step');
+        const successBox = document.getElementById('disco-deploy-success-box');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Deploying to Host...';
+        successBox.classList.add('d-none');
+        consoleWrap.classList.remove('d-none');
+        logBox.innerHTML = '';
+
+        appendDeployLog(`=================================================================`);
+        appendDeployLog(`🚀 Starting Automated 1-Click Deployment to DiscoPanel`);
+        appendDeployLog(` Target Host:  ${user}@${host}:${port}`);
+        appendDeployLog(` Server Name:  ${srvName}`);
+        appendDeployLog(` Mod Loader:   ${loader.toUpperCase()}`);
+        appendDeployLog(` MC Version:   ${mcVer}`);
+        appendDeployLog(` Server Port:  ${srvPort} | RAM: ${ram} GB`);
+        appendDeployLog(`=================================================================`);
+
+        statusText.innerText = `Connecting to ${user}@${host}...`;
+        stepBadge.innerText = 'Connecting SSH';
+        stepBadge.className = 'badge bg-warning text-dark';
+
+        const formData = new FormData();
+        formData.append('host', host);
+        formData.append('port', port);
+        formData.append('username', user);
+        if (pass) formData.append('password', pass);
+        if (key) formData.append('private_key', key);
+
+        formData.append('server_name', srvName);
+        formData.append('loader', loader);
+        formData.append('mc_version', mcVer);
+        formData.append('ram_gb', ram);
+        formData.append('server_port', srvPort);
+
+        if (currentStagedPackageId) {
+            formData.append('staged_package_id', currentStagedPackageId);
+            appendDeployLog(`✔ Attaching staged server modpack (${currentStagedPackageId}.zip)`);
+        }
+
+        // Attach world file if selected in modal or main settings
+        let worldToAttach = attachedWorldFile;
+        if (!worldToAttach) {
+            const mainWorldInput = document.getElementById('world-upload-input');
+            if (mainWorldInput && mainWorldInput.files.length > 0) {
+                worldToAttach = mainWorldInput.files[0];
+            }
+        }
+        if (worldToAttach) {
+            formData.append('world_file', worldToAttach);
+            appendDeployLog(`✔ Attaching singleplayer world save: ${worldToAttach.name}`);
+        }
+
+        fetch('/api/discopanel/deploy', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if (data.logs && Array.isArray(data.logs)) {
+                data.logs.forEach(l => appendDeployLog(l));
+            }
+
+            if (data.success) {
+                statusText.innerText = `Deployment Completed Successfully!`;
+                stepBadge.innerText = 'Completed';
+                stepBadge.className = 'badge bg-success';
+
+                const targetUrl = data.discopanel_url || `http://${host}:8080/servers/${data.server_uuid}`;
+                const successLink = document.getElementById('disco-success-link');
+                if (successLink) {
+                    successLink.href = targetUrl;
+                    successLink.innerText = `Open in DiscoPanel (${targetUrl})`;
+                }
+                successBox.classList.remove('d-none');
+                appendDeployLog(`\n🎉 SERVER IS ONLINE & REGISTERED IN DISCOPANEL!`);
+                appendDeployLog(`Direct Dashboard URL: ${targetUrl}`);
+            } else {
+                statusText.innerText = `Deployment Failed. See logs above.`;
+                stepBadge.innerText = 'Failed';
+                stepBadge.className = 'badge bg-danger';
+                appendDeployLog(`\n❌ ERROR: ${data.error || 'Deployment failed.'}`);
+                if (data.details) appendDeployLog(data.details);
+            }
+        })
+        .catch(err => {
+            statusText.innerText = `Network or Server Request Failed.`;
+            stepBadge.innerText = 'Error';
+            stepBadge.className = 'badge bg-danger';
+            appendDeployLog(`\n❌ Exception: ${err}`);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-rocket-takeoff-fill me-2"></i>Deploy Directly to DiscoPanel';
+        });
+    }
 
     function updateDiscoModalCommands() {
         const srvName = (document.getElementById('disco-srv-name').value || 'Minecraft Server').replace(/"/g, '');
@@ -1535,12 +2026,20 @@
                 importEl.innerText = directCreateCmd;
             }
         }
+        updateJavaRuntimeBadge();
     }
 
     function showDiscoTransferModal(source = 'convert') {
         currentStagedDiscoUrl = null;
+        currentStagedPackageId = null;
+        initDiscoCredentials();
+
         const badge = document.getElementById('disco-stage-badge');
         const stagedSection = document.getElementById('disco-staged-section');
+        const successBox = document.getElementById('disco-deploy-success-box');
+        const consoleWrap = document.getElementById('disco-deploy-console-wrap');
+        if (successBox) successBox.classList.add('d-none');
+        if (consoleWrap) consoleWrap.classList.add('d-none');
 
         if (source === 'convert' && currentAnalysis) {
             document.getElementById('disco-srv-name').value = currentAnalysis.pack_name || 'Converted Server';
@@ -1556,27 +2055,32 @@
             document.getElementById('disco-srv-port').value = '25565';
         }
 
+        // Check if world was selected in settings tab and inspect it for the modal
+        const mainWorldInput = document.getElementById('world-upload-input');
+        if (mainWorldInput && mainWorldInput.files.length > 0) {
+            attachedWorldFile = mainWorldInput.files[0];
+            inspectWorldSave(attachedWorldFile);
+        } else if (!attachedWorldFile) {
+            clearModalWorld();
+        }
+
         updateDiscoModalCommands();
+        updateJavaRuntimeBadge();
 
         const modal = new bootstrap.Modal(document.getElementById('discoTransferModal'));
         modal.show();
 
-        // Automatically stage the converted or custom pack on the converter backend so root@discopanel can pull it in 1 command
+        // Stage server pack on backend so direct deploy can pick up the ready archive
         if (source === 'convert' && (uploadedFile || remoteDownloadUrl)) {
             if (stagedSection) stagedSection.classList.remove('d-none');
-            if (badge) {
-                badge.className = 'badge bg-warning text-dark';
-                badge.innerHTML = '<span class="spinner-border spinner-border-sm me-1" style="width:0.7rem;height:0.7rem;"></span>Staging Server Pack...';
-            }
             const selectedMods = [];
             document.querySelectorAll('.mod-checkbox:checked').forEach(cb => selectedMods.push(cb.value));
 
             const formData = new FormData();
             if (uploadedFile) formData.append("file", uploadedFile);
             if (remoteDownloadUrl) formData.append("download_url", remoteDownloadUrl);
-            const worldInput = document.getElementById('world-upload-input');
-            if (worldInput && worldInput.files.length > 0) {
-                formData.append("world_file", worldInput.files[0]);
+            if (attachedWorldFile) {
+                formData.append("world_file", attachedWorldFile);
             }
             formData.append("selected_mods", JSON.stringify(selectedMods));
             formData.append("export_target", "server");
@@ -1589,25 +2093,13 @@
             .then(data => {
                 if (data && data.download_path) {
                     currentStagedDiscoUrl = window.location.origin + data.download_path;
+                    currentStagedPackageId = data.package_id;
                     updateDiscoModalCommands();
-                    if (badge) {
-                        badge.className = 'badge badge-brand';
-                        badge.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Pack Staged & Ready';
-                    }
                 }
             })
-            .catch(() => {
-                if (badge) {
-                    badge.className = 'badge bg-secondary';
-                    badge.innerText = 'Direct Mode';
-                }
-            });
+            .catch(() => {});
         } else if (source === 'builder' && selectedBuilderMods.size > 0) {
             if (stagedSection) stagedSection.classList.remove('d-none');
-            if (badge) {
-                badge.className = 'badge bg-warning text-dark';
-                badge.innerHTML = '<span class="spinner-border spinner-border-sm me-1" style="width:0.7rem;height:0.7rem;"></span>Staging Custom Pack...';
-            }
             const selected = Array.from(selectedBuilderMods.values());
             const formData = new FormData();
             formData.append("pack_name", document.getElementById('disco-srv-name').value);
@@ -1624,25 +2116,13 @@
             .then(data => {
                 if (data && data.download_path) {
                     currentStagedDiscoUrl = window.location.origin + data.download_path;
+                    currentStagedPackageId = data.package_id;
                     updateDiscoModalCommands();
-                    if (badge) {
-                        badge.className = 'badge badge-brand';
-                        badge.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Custom Pack Staged';
-                    }
                 }
             })
-            .catch(() => {
-                if (badge) {
-                    badge.className = 'badge bg-secondary';
-                    badge.innerText = 'Direct Mode';
-                }
-            });
+            .catch(() => {});
         } else {
             if (stagedSection) stagedSection.classList.add('d-none');
-            if (badge) {
-                badge.className = 'badge badge-brand';
-                badge.innerText = 'Direct Create Ready';
-            }
         }
     }
 
@@ -2043,6 +2523,7 @@
     window.addEventListener('DOMContentLoaded', () => {
         fetchCatalog();
         loadAllMinecraftVersions();
+        initDiscoCredentials();
     });
 </script>
 

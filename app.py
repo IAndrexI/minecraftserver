@@ -25,7 +25,14 @@ from converter_engine import (
     query_curseforge_mod_file,
     build_curseforge_pack_bytes,
     build_modrinth_mrpack_bytes,
-    classify_mod_side
+    classify_mod_side,
+    get_java_runtime_for_mc,
+    inspect_world_save,
+    normalize_world_save_zip
+)
+from discopanel_deployer import (
+    test_discopanel_connection,
+    deploy_to_discopanel_host
 )
 from api_client import (
     search_modrinth_packs,
@@ -489,7 +496,8 @@ INCLUDED SERVER MODS ({len(server_mods)}):
             "loader": loader,
             "mc_version": mc_version,
             "ram_gb": ram_gb,
-            "port": port
+            "port": port,
+            "java_info": get_java_runtime_for_mc(mc_version)
         }
 
     return StreamingResponse(
@@ -500,12 +508,100 @@ INCLUDED SERVER MODS ({len(server_mods)}):
 
 @app.get("/api/disco-download/{package_id}.zip")
 async def api_disco_download(package_id: str):
-    """Serves a staged server package directly to root@discopanel via curl."""
+    """Serves a staged server package directly to root@discopanel via curl or SFTP."""
     safe_id = os.path.basename(package_id)
     staged_path = os.path.join(DISCO_STAGE_DIR, f"{safe_id}.zip")
     if not os.path.exists(staged_path):
         raise HTTPException(status_code=404, detail="Staged DiscoPanel package not found or expired")
     return FileResponse(staged_path, media_type="application/zip", filename=f"{safe_id}.zip")
+
+@app.post("/api/discopanel/test-connection")
+async def api_test_discopanel_connection(
+    host: str = Form("192.168.0.119"),
+    port: int = Form(22),
+    username: str = Form("root"),
+    password: str = Form(None),
+    private_key: str = Form(None),
+    passphrase: str = Form(None)
+):
+    """Verifies direct SSH connectivity to DiscoPanel host (Docker, DB, disk, and permissions)."""
+    return test_discopanel_connection(
+        host=host,
+        port=port,
+        username=username,
+        password=password if password and password.strip() else None,
+        private_key=private_key if private_key and private_key.strip() else None,
+        passphrase=passphrase if passphrase and passphrase.strip() else None,
+        timeout=8
+    )
+
+@app.post("/api/inspect-world")
+async def api_inspect_world(world_file: UploadFile = File(...)):
+    """Deeply inspects an uploaded singleplayer world save and extracts metadata, chunks, and dimensions."""
+    content = await world_file.read()
+    if not (world_file.filename.endswith(".zip") or world_file.filename.endswith(".tar.gz")):
+        raise HTTPException(status_code=400, detail="World save must be a .zip archive containing level.dat")
+    info = inspect_world_save(content)
+    return info
+
+@app.post("/api/discopanel/deploy")
+async def api_deploy_to_discopanel(
+    host: str = Form("192.168.0.119"),
+    port: int = Form(22),
+    username: str = Form("root"),
+    password: str = Form(None),
+    private_key: str = Form(None),
+    passphrase: str = Form(None),
+    server_name: str = Form("Minecraft Server"),
+    loader: str = Form("fabric"),
+    mc_version: str = Form("1.20.1"),
+    ram_gb: int = Form(6),
+    server_port: int = Form(25565),
+    staged_package_id: str = Form(None),
+    world_file: UploadFile = File(None)
+):
+    """
+    Automated direct 1-click deployment to DiscoPanel host.
+    Connects via SSH/SFTP, uploads server bundle & world save, provisions Docker container,
+    and registers instance in DiscoPanel SQLite database.
+    """
+    server_zip_bytes = None
+    if staged_package_id:
+        safe_id = os.path.basename(staged_package_id)
+        staged_path = os.path.join(DISCO_STAGE_DIR, f"{safe_id}.zip")
+        if os.path.exists(staged_path):
+            with open(staged_path, "rb") as f:
+                server_zip_bytes = f.read()
+
+    world_zip_bytes = None
+    if world_file and world_file.filename:
+        raw_world = await world_file.read()
+        if len(raw_world) > 0:
+            world_info = inspect_world_save(raw_world)
+            if world_info.get("valid"):
+                world_zip_bytes = normalize_world_save_zip(raw_world)
+            else:
+                world_zip_bytes = raw_world
+
+    java_info = get_java_runtime_for_mc(mc_version)
+
+    deploy_res = deploy_to_discopanel_host(
+        host=host,
+        port=port,
+        username=username,
+        password=password if password and password.strip() else None,
+        private_key=private_key if private_key and private_key.strip() else None,
+        passphrase=passphrase if passphrase and passphrase.strip() else None,
+        server_name=server_name,
+        loader=loader,
+        mc_version=mc_version,
+        ram_gb=ram_gb,
+        server_port=server_port,
+        server_zip_bytes=server_zip_bytes,
+        world_zip_bytes=world_zip_bytes
+    )
+    deploy_res["java_runtime"] = java_info
+    return deploy_res
 
 @app.post("/api/export-to-discopanel")
 async def api_export_to_discopanel(
@@ -935,7 +1031,8 @@ Copy this directory into your Minecraft launcher instance.
             "loader": analysis.loader,
             "mc_version": analysis.minecraft_version,
             "ram_gb": ram_gb,
-            "port": port
+            "port": port,
+            "java_info": get_java_runtime_for_mc(analysis.minecraft_version)
         }
 
     return StreamingResponse(
